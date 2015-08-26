@@ -1,0 +1,35 @@
+{
+  "name": "tourze/server",
+  "description": "途者PHP框架-集成一些server相关的东西",
+  "minimum-stability": "stable",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "tourze",
+      "email": "dev@tourze.com"
+    }
+  ],
+  "require": {
+    "tourze/core": "dev-master",
+    "workerman/workerman": "^3.1"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^4.7"
+  },
+  "autoload": {
+    "psr-4": {
+      "tourze\\": "src/"
+    },
+    "files": [
+      "bootstrap.php"
+    ]
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "tourze\\": "tests/"
+    },
+    "files": [
+      "bootstrap-dev.php"
+    ]
+  }
+}
