@@ -18,7 +18,7 @@
   },
   "autoload": {
     "psr-4": {
-      "tourze\\": "src/"
+      "tourze\\Server\\": "src/"
     },
     "files": [
       "bootstrap.php"
@@ -26,7 +26,7 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "tourze\\": "tests/"
+      "tourze\\Server\\": "tests/"
     },
     "files": [
       "bootstrap-dev.php"
