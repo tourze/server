@@ -21,7 +21,7 @@ abstract class Base
     abstract public function onWorkerStart(Worker $worker);
 
     /**
-     * 设置Workert停止时的回调函数，即当Worker收到stop信号后执行Worker::onWorkerStop指定的回调函数
+     * 设置Workerman停止时的回调函数，即当Worker收到stop信号后执行Worker::onWorkerStop指定的回调函数
      *
      * @see http://doc3.workerman.net/worker-development/on-worker-stop.html
      * @param Worker $worker
