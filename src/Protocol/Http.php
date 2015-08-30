@@ -17,9 +17,8 @@ class Http extends WorkerHttp
 {
 
     /**
-     * 扩展原先的session_start函数：
-     *
-     * 1. 使session_id更加符合原生的规则
+     * 扩展原先的session_start函数，使session_id更加符合原生的规则
+     * @todo 使用PHP原生的session来解决这部分，以完成其他复杂功能
      *
      * @return bool
      */
@@ -29,12 +28,13 @@ class Http extends WorkerHttp
         {
             return session_start();
         }
-        if (HttpCache::$instance->sessionStarted)
-        {
-            Base::getLog()->notice('already sessionStarted');
-            return true;
-        }
-        HttpCache::$instance->sessionStarted = true;
+
+        //if (HttpCache::$instance->sessionStarted)
+        //{
+        //    Base::getLog()->notice('already sessionStarted');
+        //    return true;
+        //}
+        //HttpCache::$instance->sessionStarted = true;
 
         // 如果没有session，那就分配一个session
         if ( ! isset($_COOKIE[HttpCache::$sessionName]) || ! is_file(HttpCache::$sessionPath . '/ses' . $_COOKIE[HttpCache::$sessionName]))
