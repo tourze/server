@@ -43,7 +43,7 @@ class Worker extends BaseWorker
      */
     public static function load($name)
     {
-        if ( ! $config = Config::load('core')->get($name))
+        if ( ! $config = Config::load('main')->get('server.' . $name))
         {
             throw new BaseException('The requested config not found.');
         }
