@@ -97,10 +97,8 @@ class Web extends WebServer
         $file = "$rootDir/$path";
 
         // 对应的php文件不存在，而且支持rewrite
-        $_SERVER['PATH_INFO'] = '';
         if ( ! is_file($file) && $this->rewrite)
         {
-            $_SERVER['PATH_INFO'] = $file;
             $file = is_string($this->rewrite)
                 ? $rootDir . '/' . $this->rewrite
                 : $rootDir . '/' . $this->indexFile;
