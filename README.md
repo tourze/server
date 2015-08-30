@@ -7,3 +7,21 @@
 幸好现在有swoole和workerman这类服务端框架存在。
 
 本人相对来说比较熟悉workerman，所以在这个组件中最终却是选择使用workerman。
+
+本组件的使用方法很简单，只需要`composer require tourze/server`
+
+建议在main.php配置文件中加入：
+
+```
+    'component' => [
+        'http' => [
+            'class' => 'tourze\Server\Component\Http',
+            'params' => [
+            ],
+            'call' => [
+            ],
+        ],
+    ],
+```
+
+以保证输出的header正确。
