@@ -39,7 +39,7 @@ class Http extends WorkerHttp
         // 如果没有session，那就分配一个session
         if ( ! isset($_COOKIE[HttpCache::$sessionName]) || ! is_file(HttpCache::$sessionPath . '/ses' . $_COOKIE[HttpCache::$sessionName]))
         {
-            $sessionID = strtolower(TextHelper::random(20, 'qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890'));
+            $sessionID = TextHelper::random(20, 'qwertyuiopasdfghjklzxcvbnm1234567890');
             $fileName = HttpCache::$sessionPath . '/ses' . $sessionID;
             if ( ! $fileName)
             {
