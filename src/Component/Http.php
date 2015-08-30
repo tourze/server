@@ -3,6 +3,7 @@
 namespace tourze\Server\Component;
 
 use tourze\Base\Component\Http as BaseHttp;
+use tourze\Base\Helper\Arr;
 use tourze\Server\Protocol\Http as HttpProtocol;
 use Workerman\Protocols\HttpCache;
 
@@ -45,7 +46,21 @@ class Http extends BaseHttp
      */
     public function sessionID($id = null)
     {
-        return session_id($id);
+        $current = Arr::get($_COOKIE, HttpCache::$sessionName, '');
+
+        if ($id === null)
+        {
+            return $current;
+        }
+
+        $this->setCookie(HttpCache::$sessionName, $id
+            , ini_get('session.cookie_lifetime')
+            , ini_get('session.cookie_path')
+            , ini_get('session.cookie_domain')
+            , ini_get('session.cookie_secure')
+            , ini_get('session.cookie_httponly'));
+        $_COOKIE[HttpCache::$sessionName] = $id;
+        return $current;
     }
 
     /**
@@ -55,7 +70,9 @@ class Http extends BaseHttp
      */
     public function sessionRegenerateID($deleteOldSession = false)
     {
-        return session_regenerate_id($deleteOldSession);
+        unset($_COOKIE[HttpCache::$sessionName]);
+        HttpCache::$instance->sessionStarted = false;
+        return $this->sessionStart();
     }
 
     /**

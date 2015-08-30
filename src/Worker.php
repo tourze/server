@@ -2,9 +2,11 @@
 
 namespace tourze\Server;
 
+use Exception;
 use tourze\Base\Config;
 use tourze\Base\Helper\Arr;
 use tourze\Server\Exception\BaseException;
+use Workerman\Events\EventInterface;
 use Workerman\Worker as BaseWorker;
 
 /**
@@ -14,6 +16,16 @@ use Workerman\Worker as BaseWorker;
  */
 class Worker extends BaseWorker
 {
+
+    public static $protocolMapping = [
+        'http' => 'tourze\Server\Protocol\Http',
+        'text' => 'tourze\Server\Protocol\Text',
+    ];
+
+    /**
+     * @var string 可指定协议处理的类
+     */
+    protected $protocolClass = '';
 
     /**
      * 修改原构造方法
@@ -30,6 +42,84 @@ class Worker extends BaseWorker
             if (isset($this->$k))
             {
                 $this->$k = $v;
+            }
+        }
+    }
+
+    /**
+     * 监听端口
+     * @throws Exception
+     */
+    public function listen()
+    {
+        if(!$this->_socketName)
+        {
+            return;
+        }
+        // 获得应用层通讯协议以及监听的地址
+        list($scheme, $address) = explode(':', $this->_socketName, 2);
+        // 如果有指定应用层协议，则检查对应的协议类是否存在
+        if($scheme != 'tcp' && $scheme != 'udp')
+        {
+            // 判断是否有自定义协议
+            if (isset(self::$protocolMapping[$scheme]) && class_exists(self::$protocolMapping[$scheme]))
+            {
+                $this->_protocol = self::$protocolMapping[$scheme];
+            }
+            elseif ($this->protocolClass && class_exists($this->protocolClass))
+            {
+                $this->_protocol = $this->protocolClass;
+            }
+            else
+            {
+                $scheme = ucfirst($scheme);
+                $this->_protocol = '\\Protocols\\'.$scheme;
+                if(!class_exists($this->_protocol))
+                {
+                    $this->_protocol = "\\Workerman\\Protocols\\$scheme";
+                    if(!class_exists($this->_protocol))
+                    {
+                        throw new Exception("class \\Protocols\\$scheme not exist");
+                    }
+                }
+            }
+        }
+        elseif($scheme === 'udp')
+        {
+            $this->transport = 'udp';
+        }
+
+        // flag
+        $flags =  $this->transport === 'udp' ? STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN;
+        $errNo = 0;
+        $errmsg = '';
+        $this->_mainSocket = stream_socket_server($this->transport.":".$address, $errNo, $errmsg, $flags, $this->_context);
+        if(!$this->_mainSocket)
+        {
+            throw new Exception($errmsg);
+        }
+
+        // 尝试打开tcp的keepalive，关闭TCP Nagle算法
+        if(function_exists('socket_import_stream'))
+        {
+            $socket   = socket_import_stream($this->_mainSocket );
+            @socket_set_option($socket, SOL_SOCKET, SO_KEEPALIVE, 1);
+            @socket_set_option($socket, SOL_SOCKET, TCP_NODELAY, 1);
+        }
+
+        // 设置非阻塞
+        stream_set_blocking($this->_mainSocket, 0);
+
+        // 放到全局事件轮询中监听_mainSocket可读事件（客户端连接事件）
+        if(self::$globalEvent)
+        {
+            if($this->transport !== 'udp')
+            {
+                self::$globalEvent->add($this->_mainSocket, EventInterface::EV_READ, array($this, 'acceptConnection'));
+            }
+            else
+            {
+                self::$globalEvent->add($this->_mainSocket,  EventInterface::EV_READ, array($this, 'acceptUdpConnection'));
             }
         }
     }
