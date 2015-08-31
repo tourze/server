@@ -67,18 +67,19 @@ class Web extends WebServer
 
     /**
      * 监听端口
+     *
      * @throws Exception
      */
     public function listen()
     {
-        if(!$this->_socketName)
+        if ( ! $this->_socketName)
         {
             return;
         }
         // 获得应用层通讯协议以及监听的地址
         list($scheme, $address) = explode(':', $this->_socketName, 2);
         // 如果有指定应用层协议，则检查对应的协议类是否存在
-        if($scheme != 'tcp' && $scheme != 'udp')
+        if ($scheme != 'tcp' && $scheme != 'udp')
         {
             // 判断是否有自定义协议
             if (isset(Worker::$protocolMapping[$scheme]) && class_exists(Worker::$protocolMapping[$scheme]))
@@ -92,36 +93,36 @@ class Web extends WebServer
             else
             {
                 $scheme = ucfirst($scheme);
-                $this->_protocol = '\\Protocols\\'.$scheme;
-                if(!class_exists($this->_protocol))
+                $this->_protocol = '\\Protocols\\' . $scheme;
+                if ( ! class_exists($this->_protocol))
                 {
                     $this->_protocol = "\\Workerman\\Protocols\\$scheme";
-                    if(!class_exists($this->_protocol))
+                    if ( ! class_exists($this->_protocol))
                     {
                         throw new Exception("class \\Protocols\\$scheme not exist");
                     }
                 }
             }
         }
-        elseif($scheme === 'udp')
+        elseif ($scheme === 'udp')
         {
             $this->transport = 'udp';
         }
 
         // flag
-        $flags =  $this->transport === 'udp' ? STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN;
+        $flags = $this->transport === 'udp' ? STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN;
         $errNo = 0;
         $errmsg = '';
-        $this->_mainSocket = stream_socket_server($this->transport.":".$address, $errNo, $errmsg, $flags, $this->_context);
-        if(!$this->_mainSocket)
+        $this->_mainSocket = stream_socket_server($this->transport . ":" . $address, $errNo, $errmsg, $flags, $this->_context);
+        if ( ! $this->_mainSocket)
         {
             throw new Exception($errmsg);
         }
 
         // 尝试打开tcp的keepalive，关闭TCP Nagle算法
-        if(function_exists('socket_import_stream'))
+        if (function_exists('socket_import_stream'))
         {
-            $socket   = socket_import_stream($this->_mainSocket );
+            $socket = socket_import_stream($this->_mainSocket);
             @socket_set_option($socket, SOL_SOCKET, SO_KEEPALIVE, 1);
             @socket_set_option($socket, SOL_SOCKET, TCP_NODELAY, 1);
         }
@@ -130,26 +131,27 @@ class Web extends WebServer
         stream_set_blocking($this->_mainSocket, 0);
 
         // 放到全局事件轮询中监听_mainSocket可读事件（客户端连接事件）
-        if(self::$globalEvent)
+        if (self::$globalEvent)
         {
-            if($this->transport !== 'udp')
+            if ($this->transport !== 'udp')
             {
-                self::$globalEvent->add($this->_mainSocket, EventInterface::EV_READ, array($this, 'acceptConnection'));
+                self::$globalEvent->add($this->_mainSocket, EventInterface::EV_READ, [$this, 'acceptConnection']);
             }
             else
             {
-                self::$globalEvent->add($this->_mainSocket,  EventInterface::EV_READ, array($this, 'acceptUdpConnection'));
+                self::$globalEvent->add($this->_mainSocket, EventInterface::EV_READ, [$this, 'acceptUdpConnection']);
             }
         }
     }
 
     /**
      * 进程启动的时候一些初始化工作
+     *
      * @throws \Exception
      */
     public function onWorkerStart()
     {
-        if(empty($this->serverRoot))
+        if (empty($this->serverRoot))
         {
             throw new \Exception('server root not set, please use WebServer::addRoot($domain, $root_path) to set server root path');
         }
@@ -163,7 +165,7 @@ class Web extends WebServer
         $this->initMimeTypeMap();
 
         // 尝试执行开发者设定的onWorkerStart回调
-        if($this->_onWorkerStart)
+        if ($this->_onWorkerStart)
         {
             call_user_func($this->_onWorkerStart, $this);
         }
@@ -184,11 +186,22 @@ class Web extends WebServer
      */
     public function onMessage($connection, $data)
     {
+        Base::getLog()->info(__METHOD__ . ' receive http request', [
+            'uri'  => $_SERVER['REQUEST_URI'],
+            'ip'   => $connection->getRemoteIp(),
+            'port' => $connection->getRemotePort(),
+        ]);
+
         // 请求的文件
         $urlInfo = parse_url($_SERVER['REQUEST_URI']);
         if ( ! $urlInfo)
         {
             Base::getHttp()->header('HTTP/1.1 400 Bad Request');
+            Base::getLog()->warning(__METHOD__ . ' receive bad request', [
+                'uri'  => $_SERVER['REQUEST_URI'],
+                'ip'   => $connection->getRemoteIp(),
+                'port' => $connection->getRemotePort(),
+            ]);
             return $connection->close('<h1>400 Bad Request</h1>');
         }
 
@@ -226,6 +239,11 @@ class Web extends WebServer
             if (( ! ($requestRealPath = realpath($file)) || ! ($rootDirRealPath = realpath($rootDir))) || 0 !== strpos($requestRealPath, $rootDirRealPath))
             {
                 Base::getHttp()->header('HTTP/1.1 400 Bad Request');
+                Base::getLog()->warning(__METHOD__ . ' receive bad request', [
+                    'uri'  => $_SERVER['REQUEST_URI'],
+                    'ip'   => $connection->getRemoteIp(),
+                    'port' => $connection->getRemotePort(),
+                ]);
                 return $connection->close('<h1>400 Bad Request</h1>');
             }
 
@@ -234,6 +252,13 @@ class Web extends WebServer
             // 如果请求的是php文件
             if ($extension === 'php')
             {
+                Base::getLog()->info(__METHOD__ . ' handle request', [
+                    'uri'  => $_SERVER['REQUEST_URI'],
+                    'ip'   => $connection->getRemoteIp(),
+                    'port' => $connection->getRemotePort(),
+                    'file' => $file,
+                ]);
+                Base::cleanComponents();
                 $cwd = getcwd();
                 chdir($rootDir);
                 ini_set('display_errors', 'off');
@@ -249,6 +274,11 @@ class Web extends WebServer
                 }
                 catch (Exception $e)
                 {
+                    Base::getLog()->error($e->getMessage(), [
+                        'code' => $e->getCode(),
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine(),
+                    ]);
                     // 如果不是exit
                     if ($e->getMessage() != 'jump_exit')
                     {
