@@ -71,7 +71,6 @@ class Http extends BaseHttp
     public function sessionRegenerateID($deleteOldSession = false)
     {
         unset($_COOKIE[HttpCache::$sessionName]);
-        HttpCache::$instance->sessionStarted = false;
         return $this->sessionStart();
     }
 
