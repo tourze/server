@@ -6,6 +6,7 @@ use tourze\Base\Base;
 use tourze\Base\Component\Session as BaseSession;
 use tourze\Base\Helper\File as FileHelper;
 use tourze\Server\Protocol\Http as HttpProtocol;
+use tourze\Server\Protocol\Http;
 
 /**
  * Workerman架构下的会话组件
@@ -31,5 +32,13 @@ class Session extends BaseSession
         Base::getLog()->info(__METHOD__ . ' delete session file', [
             'file' => $file,
         ]);
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function id($id = null)
+    {
+        return Http::getSessionID();
     }
 }
