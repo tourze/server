@@ -11,8 +11,9 @@ use Workerman\Protocols\Http as WorkerHttp;
 use Workerman\Protocols\HttpCache;
 
 /**
- * 继承原有的http协议
+ * 继承原有的http协议，主要是更改了会话的逻辑
  *
+ * @todo  回收过期会话
  * @package tourze\Server\Protocol
  */
 class Http extends WorkerHttp
@@ -25,7 +26,11 @@ class Http extends WorkerHttp
      */
     public static function getSessionID()
     {
-        return Arr::get($_COOKIE, HttpCache::$sessionName, '');
+        $id = Arr::get($_COOKIE, HttpCache::$sessionName, '');
+        Base::getLog()->info(__METHOD__ . ' get session id', [
+            'id' => $id,
+        ]);
+        return $id;
     }
 
     /**
@@ -36,6 +41,9 @@ class Http extends WorkerHttp
     public static function generateSession()
     {
         $sessionID = TextHelper::random(20, 'qwertyuiopasdfghjklzxcvbnm1234567890');
+        Base::getLog()->info(__METHOD__ . ' generate session id', [
+            'id' => $sessionID
+        ]);
         return $sessionID;
     }
 
@@ -48,9 +56,15 @@ class Http extends WorkerHttp
     public static function getSessionFile($sessionID)
     {
         $fileName = HttpCache::$sessionPath . '/tourze_session_' . $sessionID;
+        Base::getLog()->info(__METHOD__ . ' get session file', [
+            'file' => $fileName,
+        ]);
 
         if ( ! FileHelper::exists($fileName))
         {
+            Base::getLog()->warning(__METHOD__ . ' session file not found, create it', [
+                'file' => $fileName,
+            ]);
             FileHelper::touch($fileName);
         }
         return $fileName;
@@ -58,8 +72,6 @@ class Http extends WorkerHttp
 
     /**
      * 扩展原先的session_start函数，使session_id更加符合原生的规则
-     *
-     * @todo 使用PHP原生的session来解决这部分，以完成其他复杂功能
      *
      * @return bool
      */
@@ -77,11 +89,15 @@ class Http extends WorkerHttp
         if ( ! $sessionID = self::getSessionID())
         {
             $sessionID = self::generateSession();
-            Base::getLog()->info(__METHOD__ . ' dispatch session id.', [
+            Base::getLog()->info(__METHOD__ . ' dispatch new session id.', [
                 'id' => $sessionID
             ]);
             $_COOKIE[HttpCache::$sessionName] = $sessionID;
 
+            Base::getLog()->info(__METHOD__ . ' save session id to cookie', [
+                'cookie' => HttpCache::$sessionName,
+                'id'     => $sessionID,
+            ]);
             self::setcookie(
                 HttpCache::$sessionName
                 , $sessionID
@@ -103,6 +119,13 @@ class Http extends WorkerHttp
         if ($raw)
         {
             $_SESSION = (array) json_decode($raw, true);
+            Base::getLog()->info(__METHOD__ . ' set $_SESSION');
+        }
+        else
+        {
+            Base::getLog()->warning(__METHOD__ . ' session file not found', [
+                'file' => $fileName,
+            ]);
         }
 
         return true;
@@ -115,6 +138,7 @@ class Http extends WorkerHttp
      */
     public static function sessionWriteClose()
     {
+        Base::getLog()->info(__METHOD__ . ' call session write close');
         if (PHP_SAPI != 'cli')
         {
             session_write_close();
@@ -127,8 +151,15 @@ class Http extends WorkerHttp
             {
                 $sessionID = self::getSessionID();
                 $fileName = self::getSessionFile($sessionID);
+                Base::getLog()->info(__METHOD__ . ' save session data to file', [
+                    'file' => $fileName,
+                ]);
                 return file_put_contents($fileName, $sessionStr);
             }
+        }
+        else
+        {
+            Base::getLog()->warning(__METHOD__ . ' session date is empty');
         }
         return empty($_SESSION);
     }
@@ -147,10 +178,15 @@ class Http extends WorkerHttp
         if ( ! isset(HttpCache::$header['Http-Code']))
         {
             $header = "HTTP/1.1 200 OK\r\n";
+            Base::getLog()->info(__METHOD__ . ' default http code');
         }
         else
         {
-            $header = HttpCache::$header['Http-Code'] . "\r\n";
+            $header = HttpCache::$header['Http-Code'];
+            Base::getLog()->info(__METHOD__ . ' custom http code', [
+                'header' => $header,
+            ]);
+            $header .= "\r\n";
             unset(HttpCache::$header['Http-Code']);
         }
 
@@ -176,8 +212,11 @@ class Http extends WorkerHttp
             }
         }
 
-        // header
-        $header .= "Server: tourze/" . Base::VERSION . "\r\nContent-Length: " . strlen($content) . "\r\n\r\n";
+        if (Base::$expose)
+        {
+            $header .= "Server: tourze/" . Base::VERSION . "\r\n";
+        }
+        $header .= "Content-Length: " . strlen($content) . "\r\n\r\n";
 
         // save session
         self::sessionWriteClose();
