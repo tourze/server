@@ -170,8 +170,10 @@ class Web extends Worker
             $extension = 'php';
         }
 
-        $rootDir = isset($this->serverRoot[$_SERVER['HTTP_HOST']])
-            ? $this->serverRoot[$_SERVER['HTTP_HOST']]
+        $serverName = Arr::get($_SERVER, 'SERVER_NAME');
+
+        $rootDir = isset($this->serverRoot[$serverName])
+            ? $this->serverRoot[$serverName]
             : current($this->serverRoot);
 
         $file = "$rootDir/$path";
