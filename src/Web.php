@@ -5,20 +5,48 @@ namespace tourze\Server;
 use Exception;
 use tourze\Base\Base;
 use tourze\Base\Helper\Arr;
+use tourze\Base\Helper\Mime;
 use Workerman\Connection\TcpConnection;
-use Workerman\Events\EventInterface;
 use Workerman\Protocols\HttpCache;
-use Workerman\WebServer;
 
 /**
  * 继承原有的服务器类
  *
  * @package tourze\Server
  */
-class Web extends WebServer
+class Web extends Worker
 {
 
+    /**
+     * @var string 默认mime类型
+     */
+    protected static $defaultMimeType = 'text/html; charset=utf-8';
+
+    /**
+     * @var string 默认会话使用的session名称
+     */
     public static $sessionName = 'TSESSION';
+
+    /**
+     * mime类型映射关系
+     *
+     * @var array
+     */
+    protected static $mimeTypeMap = [];
+
+    /**
+     * 用来保存用户设置的onWorkerStart回调
+     *
+     * @var callback
+     */
+    protected $_onWorkerStart = null;
+
+    /**
+     * 服务器名到文件路径的转换
+     *
+     * @var array ['workerman.net'=>'/home', 'www.workerman.net'=>'home/www']
+     */
+    protected $serverRoot = [];
 
     /**
      * @var string 缺省文件
@@ -47,16 +75,7 @@ class Web extends WebServer
      */
     public function __construct($config)
     {
-        parent::__construct(Arr::get($config, 'socketName'), Arr::get($config, 'contextOptions'));
-
-        // 设置数据
-        foreach ($config as $k => $v)
-        {
-            if (isset($this->$k))
-            {
-                $this->$k = $v;
-            }
-        }
+        parent::__construct($config);
 
         $siteList = Arr::get($config, 'siteList');
         foreach ($siteList as $domain => $path)
@@ -66,82 +85,28 @@ class Web extends WebServer
     }
 
     /**
-     * 监听端口
+     * 添加站点域名与站点目录的对应关系，类似nginx的
      *
-     * @throws Exception
+     * @param string $domain
+     * @param string $root_path
+     * @return void
      */
-    public function listen()
+    public function addRoot($domain, $root_path)
     {
-        if ( ! $this->_socketName)
-        {
-            return;
-        }
-        // 获得应用层通讯协议以及监听的地址
-        list($scheme, $address) = explode(':', $this->_socketName, 2);
-        // 如果有指定应用层协议，则检查对应的协议类是否存在
-        if ($scheme != 'tcp' && $scheme != 'udp')
-        {
-            // 判断是否有自定义协议
-            if (isset(Worker::$protocolMapping[$scheme]) && class_exists(Worker::$protocolMapping[$scheme]))
-            {
-                $this->_protocol = Worker::$protocolMapping[$scheme];
-            }
-            elseif ($this->protocolClass && class_exists($this->protocolClass))
-            {
-                $this->_protocol = $this->protocolClass;
-            }
-            else
-            {
-                $scheme = ucfirst($scheme);
-                $this->_protocol = '\\Protocols\\' . $scheme;
-                if ( ! class_exists($this->_protocol))
-                {
-                    $this->_protocol = "\\Workerman\\Protocols\\$scheme";
-                    if ( ! class_exists($this->_protocol))
-                    {
-                        throw new Exception("class \\Protocols\\$scheme not exist");
-                    }
-                }
-            }
-        }
-        elseif ($scheme === 'udp')
-        {
-            $this->transport = 'udp';
-        }
+        $this->serverRoot[$domain] = $root_path;
+    }
 
-        // flag
-        $flags = $this->transport === 'udp' ? STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN;
-        $errNo = 0;
-        $errmsg = '';
-        $this->_mainSocket = stream_socket_server($this->transport . ":" . $address, $errNo, $errmsg, $flags, $this->_context);
-        if ( ! $this->_mainSocket)
-        {
-            throw new Exception($errmsg);
-        }
-
-        // 尝试打开tcp的keepalive，关闭TCP Nagle算法
-        if (function_exists('socket_import_stream'))
-        {
-            $socket = socket_import_stream($this->_mainSocket);
-            @socket_set_option($socket, SOL_SOCKET, SO_KEEPALIVE, 1);
-            @socket_set_option($socket, SOL_SOCKET, TCP_NODELAY, 1);
-        }
-
-        // 设置非阻塞
-        stream_set_blocking($this->_mainSocket, 0);
-
-        // 放到全局事件轮询中监听_mainSocket可读事件（客户端连接事件）
-        if (self::$globalEvent)
-        {
-            if ($this->transport !== 'udp')
-            {
-                self::$globalEvent->add($this->_mainSocket, EventInterface::EV_READ, [$this, 'acceptConnection']);
-            }
-            else
-            {
-                self::$globalEvent->add($this->_mainSocket, EventInterface::EV_READ, [$this, 'acceptUdpConnection']);
-            }
-        }
+    /**
+     * 运行
+     *
+     * @see Workerman.Worker::run()
+     */
+    public function run()
+    {
+        $this->_onWorkerStart = $this->onWorkerStart;
+        $this->onWorkerStart = [$this, 'onWorkerStart'];
+        $this->onMessage = [$this, 'onMessage'];
+        parent::run();
     }
 
     /**
@@ -153,16 +118,13 @@ class Web extends WebServer
     {
         if (empty($this->serverRoot))
         {
-            throw new \Exception('server root not set, please use WebServer::addRoot($domain, $root_path) to set server root path');
+            throw new Exception('server root not set, please use WebServer::addRoot($domain, $root_path) to set server root path');
         }
 
         // 初始化HttpCache
         HttpCache::init();
         session_name(self::$sessionName);
         HttpCache::$sessionName = self::$sessionName;
-
-        // 初始化mimeMap
-        $this->initMimeTypeMap();
 
         // 尝试执行开发者设定的onWorkerStart回调
         if ($this->_onWorkerStart)
@@ -293,14 +255,7 @@ class Web extends WebServer
             }
 
             // 请求的是静态资源文件
-            if (isset(self::$mimeTypeMap[$extension]))
-            {
-                Base::getHttp()->header('Content-Type: ' . self::$mimeTypeMap[$extension]);
-            }
-            else
-            {
-                Base::getHttp()->header('Content-Type: ' . self::$defaultMimeType);
-            }
+            Base::getHttp()->header('Content-Type: ' . Mime::getMimeFromExtension($extension, self::$defaultMimeType));
 
             // 获取文件信息
             $info = stat($file);
