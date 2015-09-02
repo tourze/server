@@ -188,6 +188,10 @@ class Web extends Worker
         // 请求的文件存在
         if (is_file($file))
         {
+            Base::getLog()->info(__METHOD__ . ' request file existed', [
+                'file' => $file
+            ]);
+
             // 判断是否是站点目录里的文件
             if (( ! ($requestRealPath = realpath($file)) || ! ($rootDirRealPath = realpath($rootDir))) || 0 !== strpos($requestRealPath, $rootDirRealPath))
             {
@@ -275,6 +279,10 @@ class Web extends Worker
         }
         else
         {
+            Base::getLog()->warning(__METHOD__ . ' request file failed', [
+                'file' => $file
+            ]);
+
             // 404
             Base::getHttp()->header("HTTP/1.1 404 Not Found");
             return $connection->close('<html><head><title>404 页面不存在</title></head><body><center><h3>404 Not Found</h3></center></body></html>');
