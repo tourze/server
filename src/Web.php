@@ -35,16 +35,12 @@ class Web extends Worker
     protected static $mimeTypeMap = [];
 
     /**
-     * 用来保存用户设置的onWorkerStart回调
-     *
-     * @var callback
+     * @var callback 用来保存用户设置的onWorkerStart回调
      */
     protected $_onWorkerStart = null;
 
     /**
-     * 服务器名到文件路径的转换
-     *
-     * @var array ['workerman.net'=>'/home', 'www.workerman.net'=>'home/www']
+     * @var array 服务器名到文件路径的转换 ['workerman.net'=>'/home', 'www.workerman.net'=>'home/www']
      */
     protected $serverRoot = [];
 
@@ -62,11 +58,6 @@ class Web extends Worker
      * @var string 默认错误页
      */
     protected $errorFile = 'error.php';
-
-    /**
-     * @var string 可指定协议处理的类
-     */
-    protected $protocolClass = '';
 
     /**
      * 修改原构造方法

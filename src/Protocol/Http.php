@@ -99,13 +99,13 @@ class Http extends WorkerHttp
                 'id'     => $sessionID,
             ]);
             self::setcookie(
-                HttpCache::$sessionName
-                , $sessionID
-                , ini_get('session.cookie_lifetime')
-                , ini_get('session.cookie_path')
-                , ini_get('session.cookie_domain')
-                , ini_get('session.cookie_secure')
-                , ini_get('session.cookie_httponly')
+                HttpCache::$sessionName,
+                $sessionID,
+                ini_get('session.cookie_lifetime'),
+                ini_get('session.cookie_path'),
+                ini_get('session.cookie_domain'),
+                ini_get('session.cookie_secure'),
+                ini_get('session.cookie_httponly')
             );
         }
         session_id($sessionID);

@@ -18,6 +18,9 @@ use Workerman\Worker as BaseWorker;
 class Worker extends BaseWorker
 {
 
+    /**
+     * @var array
+     */
     public static $protocolMapping = [
         'http' => 'tourze\Server\Protocol\Http',
         'text' => 'tourze\Server\Protocol\Text',
