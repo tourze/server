@@ -62,7 +62,7 @@ class Http extends WorkerHttp
 
         if ( ! FileHelper::exists($fileName))
         {
-            Base::getLog()->warning(__METHOD__ . ' session file not found, create it', [
+            Base::getLog()->notice(__METHOD__ . ' session file not found, create it', [
                 'file' => $fileName,
             ]);
             FileHelper::touch($fileName);
@@ -159,7 +159,7 @@ class Http extends WorkerHttp
         }
         else
         {
-            Base::getLog()->warning(__METHOD__ . ' session date is empty');
+            Base::getLog()->notice(__METHOD__ . ' session date is empty');
         }
         return empty($_SESSION);
     }
