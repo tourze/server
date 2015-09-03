@@ -28,7 +28,7 @@ class Http extends BaseHttp
      */
     public function setCookie($name, $value = '', $maxAge = 0, $path = '', $domain = '', $secure = false, $httpOnly = false)
     {
-        return HttpProtocol::setcookie($name, $value, $maxAge, $path, $domain, $secure, $httpOnly);
+        return HttpProtocol::setCookie($name, $value, $maxAge, $path, $domain, $secure, $httpOnly);
     }
 
     /**
@@ -87,7 +87,7 @@ class Http extends BaseHttp
      */
     public function header($string, $replace = true, $httpResponseCode = null)
     {
-        return HttpProtocol::header($string, $replace, $httpResponseCode);
+        return HttpCache::$header[] = $string;
     }
 
     /**

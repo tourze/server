@@ -1,6 +1,8 @@
 <?php
 
-if (isset($_GET['header']))
+foreach ($_GET as $k => $v)
 {
-    \tourze\Base\Base::getHttp()->header('Time: '.time());
+    \tourze\Base\Base::getHttp()->header($v);
 }
+
+echo time();

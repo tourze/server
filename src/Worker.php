@@ -67,7 +67,7 @@ class Worker extends BaseWorker
         $temp = explode(':', $this->_socketName, 2);
         $scheme = Arr::get($temp, 0);
         $address = Arr::get($temp, 1);
-        Base::getLog()->info(__METHOD__ . ' fetch socket info', [
+        Base::getLog()->debug(__METHOD__ . ' fetch socket info', [
             'scheme'  => $scheme,
             'address' => $address,
         ]);
@@ -103,7 +103,7 @@ class Worker extends BaseWorker
         {
             $this->transport = 'udp';
         }
-        Base::getLog()->info(__METHOD__ . ' set protocol', [
+        Base::getLog()->debug(__METHOD__ . ' set protocol', [
             'class' => $this->_protocol,
         ]);
 

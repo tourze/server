@@ -139,7 +139,7 @@ class Web extends Worker
      */
     public function onMessage($connection, $data)
     {
-        Base::getLog()->info(__METHOD__ . ' receive http request', [
+        Base::getLog()->debug(__METHOD__ . ' receive http request', [
             'uri'  => $_SERVER['REQUEST_URI'],
             'ip'   => $connection->getRemoteIp(),
             'port' => $connection->getRemotePort(),
@@ -190,7 +190,7 @@ class Web extends Worker
         // 请求的文件存在
         if (is_file($file))
         {
-            Base::getLog()->info(__METHOD__ . ' request file existed', [
+            Base::getLog()->debug(__METHOD__ . ' request file existed', [
                 'file' => $file
             ]);
 
@@ -211,7 +211,7 @@ class Web extends Worker
             // 如果请求的是php文件
             if ($extension === 'php')
             {
-                Base::getLog()->info(__METHOD__ . ' handle request', [
+                Base::getLog()->debug(__METHOD__ . ' handle request', [
                     'uri'  => $_SERVER['REQUEST_URI'],
                     'ip'   => $connection->getRemoteIp(),
                     'port' => $connection->getRemotePort(),

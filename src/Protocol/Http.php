@@ -13,11 +13,39 @@ use Workerman\Protocols\HttpCache;
 /**
  * 继承原有的http协议，主要是更改了会话的逻辑
  *
- * @todo  回收过期会话
+ * @todo    回收过期会话
  * @package tourze\Server\Protocol
  */
 class Http extends WorkerHttp
 {
+
+    /**
+     * 设置cookie
+     *
+     * @param string  $name
+     * @param string  $value
+     * @param integer $maxage
+     * @param string  $path
+     * @param string  $domain
+     * @param bool    $secure
+     * @param bool    $HTTPOnly
+     * @return bool
+     */
+    public static function setCookie($name, $value = '', $maxage = 0, $path = '', $domain = '', $secure = false, $HTTPOnly = false)
+    {
+        if (PHP_SAPI != 'cli')
+        {
+            return setcookie($name, $value, $maxage, $path, $domain, $secure, $HTTPOnly);
+        }
+
+        HttpCache::$header[] = 'Set-Cookie: ' . $name . '=' . rawurlencode($value)
+            . (empty($domain) ? '' : '; Domain=' . $domain)
+            . (empty($maxage) ? '' : '; Max-Age=' . $maxage)
+            . (empty($path) ? '' : '; Path=' . $path)
+            . (! $secure ? '' : '; Secure')
+            . (! $HTTPOnly ? '' : '; HttpOnly');
+        return true;
+    }
 
     /**
      * 从cookie中读取当前session_id
@@ -27,7 +55,7 @@ class Http extends WorkerHttp
     public static function getSessionID()
     {
         $id = Arr::get($_COOKIE, HttpCache::$sessionName, '');
-        Base::getLog()->info(__METHOD__ . ' get session id', [
+        Base::getLog()->debug(__METHOD__ . ' get session id', [
             'id' => $id,
         ]);
         return $id;
@@ -41,7 +69,7 @@ class Http extends WorkerHttp
     public static function generateSession()
     {
         $sessionID = TextHelper::random(20, 'qwertyuiopasdfghjklzxcvbnm1234567890');
-        Base::getLog()->info(__METHOD__ . ' generate session id', [
+        Base::getLog()->debug(__METHOD__ . ' generate session id', [
             'id' => $sessionID
         ]);
         return $sessionID;
@@ -56,7 +84,7 @@ class Http extends WorkerHttp
     public static function getSessionFile($sessionID)
     {
         $fileName = HttpCache::$sessionPath . '/tourze_session_' . $sessionID;
-        Base::getLog()->info(__METHOD__ . ' get session file', [
+        Base::getLog()->debug(__METHOD__ . ' get session file', [
             'file' => $fileName,
         ]);
 
@@ -77,7 +105,7 @@ class Http extends WorkerHttp
      */
     public static function sessionStart()
     {
-        Base::getLog()->info(__METHOD__ . ' call session stared.', [
+        Base::getLog()->debug(__METHOD__ . ' call session stared.', [
             'ip' => Arr::get($_SERVER, 'REMOTE_ADDR')
         ]);
         if (PHP_SAPI != 'cli')
@@ -89,16 +117,16 @@ class Http extends WorkerHttp
         if ( ! $sessionID = self::getSessionID())
         {
             $sessionID = self::generateSession();
-            Base::getLog()->info(__METHOD__ . ' dispatch new session id.', [
+            Base::getLog()->debug(__METHOD__ . ' dispatch new session id.', [
                 'id' => $sessionID
             ]);
             $_COOKIE[HttpCache::$sessionName] = $sessionID;
 
-            Base::getLog()->info(__METHOD__ . ' save session id to cookie', [
+            Base::getLog()->debug(__METHOD__ . ' save session id to cookie', [
                 'cookie' => HttpCache::$sessionName,
                 'id'     => $sessionID,
             ]);
-            self::setcookie(
+            self::setCookie(
                 HttpCache::$sessionName,
                 $sessionID,
                 ini_get('session.cookie_lifetime'),
@@ -112,14 +140,14 @@ class Http extends WorkerHttp
 
         // 读取文件
         $fileName = self::getSessionFile($sessionID);
-        Base::getLog()->info(__METHOD__ . ' read session file.', [
+        Base::getLog()->debug(__METHOD__ . ' read session file.', [
             'file' => $fileName
         ]);
         $raw = file_get_contents($fileName);
         if ($raw)
         {
             $_SESSION = (array) json_decode($raw, true);
-            Base::getLog()->info(__METHOD__ . ' set $_SESSION');
+            Base::getLog()->debug(__METHOD__ . ' set $_SESSION');
         }
         else
         {
@@ -138,7 +166,7 @@ class Http extends WorkerHttp
      */
     public static function sessionWriteClose()
     {
-        Base::getLog()->info(__METHOD__ . ' call session write close');
+        Base::getLog()->debug(__METHOD__ . ' call session write close');
         if (PHP_SAPI != 'cli')
         {
             session_write_close();
@@ -151,7 +179,7 @@ class Http extends WorkerHttp
             {
                 $sessionID = self::getSessionID();
                 $fileName = self::getSessionFile($sessionID);
-                Base::getLog()->info(__METHOD__ . ' save session data to file', [
+                Base::getLog()->debug(__METHOD__ . ' save session data to file', [
                     'file' => $fileName,
                 ]);
                 return file_put_contents($fileName, $sessionStr);
@@ -174,55 +202,62 @@ class Http extends WorkerHttp
      */
     public static function encode($content, TcpConnection $connection)
     {
-        // 没有http-code默认给个
-        if ( ! isset(HttpCache::$header['Http-Code']))
-        {
-            $header = "HTTP/1.1 200 OK\r\n";
-            Base::getLog()->info(__METHOD__ . ' default http code');
-        }
-        else
-        {
-            $header = HttpCache::$header['Http-Code'];
-            Base::getLog()->info(__METHOD__ . ' custom http code', [
-                'header' => $header,
-            ]);
-            $header .= "\r\n";
-            unset(HttpCache::$header['Http-Code']);
-        }
+        $headers = HttpCache::$header;
 
-        // Content-Type
-        if ( ! isset(HttpCache::$header['Content-Type']))
-        {
-            $header .= "Content-Type: text/html;charset=utf-8\r\n";
-        }
+        Base::getLog()->debug(__METHOD__ . ' encode header and send', [
+            'headers' => $headers,
+        ]);
 
-        // other headers
-        foreach (HttpCache::$header as $key => $item)
+        $sendHeader = [];
+
+        // 没有http-code默认给个，content-type也是
+        $hasStatus = false;
+        $hasContentType = false;
+        foreach ($headers as $header)
         {
-            if ('Set-Cookie' === $key && is_array($item))
+            if (substr($header, 0, strlen('HTTP/')) == 'HTTP/')
             {
-                foreach ($item as $it)
-                {
-                    $header .= $it . "\r\n";
-                }
+                $hasStatus = true;
+                $sendHeader[] = $header;
+                Base::getLog()->debug(__METHOD__ . ' custom http code', [
+                    'header' => $header,
+                ]);
             }
-            else
+            elseif (strtolower(substr($header, 0, strlen('content-type:'))) == 'content-type:')
             {
-                $header .= $item . "\r\n";
+                $hasContentType = true;
             }
         }
+        if ( ! $hasStatus)
+        {
+            $sendHeader[] = "HTTP/1.1 200 OK";
+            Base::getLog()->debug(__METHOD__ . ' default http code');
+        }
+        if ( ! $hasContentType)
+        {
+            Base::getLog()->debug(__METHOD__ . ' missing content type, set default value');
+            $sendHeader[] = 'Content-Type: text/html;charset=utf-8';
+        }
 
+        // 合并
+        $sendHeader = Arr::merge($sendHeader, $headers);
+
+        // 一些额外的header信息
         if (Base::$expose)
         {
-            $header .= "Server: tourze/" . Base::VERSION . "\r\n";
+            $sendHeader[] = "Server: tourze/" . Base::VERSION;
         }
-        $header .= "Content-Length: " . strlen($content) . "\r\n\r\n";
+        $sendHeader[] = "Content-Length: " . strlen($content);
+
+        $sendHeader = implode("\r\n", $sendHeader);
+        $sendHeader .= "\r\n\r\n";
 
         // save session
         self::sessionWriteClose();
 
+        HttpCache::$header = [];
         // the whole http package
-        return $header . $content;
+        return $sendHeader . $content;
     }
 
 }

@@ -22,13 +22,13 @@ class Session extends BaseSession
     {
         // 清空session数据
         $_SESSION = [];
-        Base::getLog()->info(__METHOD__ . ' clean $_SESSION');
+        Base::getLog()->debug(__METHOD__ . ' clean $_SESSION');
 
         // 删除对应的session文件
         $sessionID = HttpProtocol::getSessionID();
         $file = HttpProtocol::getSessionFile($sessionID);
         FileHelper::delete($file);
-        Base::getLog()->info(__METHOD__ . ' delete session file', [
+        Base::getLog()->debug(__METHOD__ . ' delete session file', [
             'file' => $file,
         ]);
     }

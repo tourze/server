@@ -35,9 +35,8 @@ class Log extends BaseLog
      */
     public function debug($log, array $context = [])
     {
-        $log = date($this->timeFormat) . ' ' . $log;
-        $context = json_encode($context, JSON_UNESCAPED_UNICODE);
-        $this->climate->yellow("DEBUG: $log [$context]");
+        $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
+        $this->climate->yellow(date($this->timeFormat) . " DEBUG: $log [$context]");
     }
 
     /**
@@ -45,9 +44,8 @@ class Log extends BaseLog
      */
     public function info($log, array $context = [])
     {
-        $log = date($this->timeFormat) . ' ' . $log;
-        $context = json_encode($context, JSON_UNESCAPED_UNICODE);
-        $this->climate->white("INFO: $log [$context]");
+        $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
+        $this->climate->white(date($this->timeFormat) . " INFO: $log [$context]");
     }
 
     /**
@@ -55,9 +53,8 @@ class Log extends BaseLog
      */
     public function notice($log, array $context = [])
     {
-        $log = date($this->timeFormat) . ' ' . $log;
-        $context = json_encode($context, JSON_UNESCAPED_UNICODE);
-        $this->climate->blue("NOTICE: $log [$context]");
+        $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
+        $this->climate->blue(date($this->timeFormat) . " NOTICE: $log [$context]");
     }
 
     /**
@@ -65,9 +62,8 @@ class Log extends BaseLog
      */
     public function warning($log, array $context = [])
     {
-        $log = date($this->timeFormat) . ' ' . $log;
-        $context = json_encode($context, JSON_UNESCAPED_UNICODE);
-        $this->climate->red("WARNING: $log [$context]");
+        $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
+        $this->climate->red(date($this->timeFormat) . " WARNING: $log [$context]");
     }
 
     /**
@@ -75,9 +71,8 @@ class Log extends BaseLog
      */
     public function error($log, array $context = [])
     {
-        $log = date($this->timeFormat) . ' ' . $log;
-        $context = json_encode($context, JSON_UNESCAPED_UNICODE);
-        $this->climate->lightRed("ERROR: $log [$context]");
+        $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
+        $this->climate->lightRed(date($this->timeFormat) . " ERROR: $log [$context]");
     }
 
     /**
@@ -85,9 +80,8 @@ class Log extends BaseLog
      */
     public function critical($log, array $context = [])
     {
-        $log = date($this->timeFormat) . ' ' . $log;
-        $context = json_encode($context, JSON_UNESCAPED_UNICODE);
-        $this->climate->lightBlue("CRITICAL: $log [$context]");
+        $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
+        $this->climate->lightBlue(date($this->timeFormat) . " CRITICAL: $log [$context]");
     }
 
     /**
@@ -95,9 +89,8 @@ class Log extends BaseLog
      */
     public function alert($log, array $context = [])
     {
-        $log = date($this->timeFormat) . ' ' . $log;
-        $context = json_encode($context, JSON_UNESCAPED_UNICODE);
-        $this->climate->lightYellow("ALERT: $log [$context]");
+        $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
+        $this->climate->lightYellow(date($this->timeFormat) . " ALERT: $log [$context]");
     }
 
     /**
@@ -105,8 +98,7 @@ class Log extends BaseLog
      */
     public function emergency($log, array $context = [])
     {
-        $log = date($this->timeFormat) . ' ' . $log;
-        $context = json_encode($context, JSON_UNESCAPED_UNICODE);
-        $this->climate->darkGray("EMERGENCY: $log [$context]");
+        $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
+        $this->climate->darkGray(date($this->timeFormat) . " EMERGENCY: $log [$context]");
     }
 }
