@@ -8,6 +8,7 @@ use tourze\Base\Component\Log as BaseLog;
 /**
  * Workerman架构下的日志组件
  *
+ * @property string timeFormat
  * @package tourze\Server\Component
  */
 class Log extends BaseLog
@@ -18,8 +19,30 @@ class Log extends BaseLog
      */
     public $climate;
 
-    public $timeFormat = 'Y-m-d H:i:s';
+    /**
+     * @var string
+     */
+    protected $_timeFormat = 'e Y-m-d H:i:s:u';
 
+    /**
+     * @return string
+     */
+    public function getTimeFormat()
+    {
+        return $this->_timeFormat;
+    }
+
+    /**
+     * @param string $timeFormat
+     */
+    public function setTimeFormat($timeFormat)
+    {
+        $this->_timeFormat = $timeFormat;
+    }
+
+    /**
+     * @inheritdoc
+     */
     public function init()
     {
         parent::init();
