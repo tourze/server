@@ -110,4 +110,16 @@ class Http extends BaseHttp
     {
         return HttpCache::$header;
     }
+
+    /**
+     * @inheritdoc
+     */
+    public function headersSent(&$file = null, &$line = null)
+    {
+        Base::getLog()->info(__METHOD__ . ' check if header sent', [
+            'file' => $file,
+            'line' => $line,
+        ]);
+        return ! empty(HttpCache::$header);
+    }
 }
