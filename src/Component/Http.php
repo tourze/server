@@ -2,6 +2,7 @@
 
 namespace tourze\Server\Component;
 
+use tourze\Base\Base;
 use tourze\Base\Component\Http as BaseHttp;
 use tourze\Base\Helper\Arr;
 use tourze\Server\Protocol\Http as HttpProtocol;
@@ -87,6 +88,10 @@ class Http extends BaseHttp
      */
     public function header($string, $replace = true, $httpResponseCode = null)
     {
+        Base::getLog()->debug(__METHOD__ . ' add response header', [
+            'header'  => $string,
+            'replace' => $replace,
+        ]);
         return HttpCache::$header[] = $string;
     }
 

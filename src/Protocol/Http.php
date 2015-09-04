@@ -249,6 +249,8 @@ class Http extends WorkerHttp
         }
         $sendHeader[] = "Content-Length: " . strlen($content);
 
+        // 记录要输出的header
+
         $sendHeader = implode("\r\n", $sendHeader);
         $sendHeader .= "\r\n\r\n";
 
