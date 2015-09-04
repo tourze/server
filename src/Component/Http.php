@@ -116,7 +116,7 @@ class Http extends BaseHttp
      */
     public function headersSent(&$file = null, &$line = null)
     {
-        Base::getLog()->info(__METHOD__ . ' check if header sent', [
+        Base::getLog()->debug(__METHOD__ . ' check if header sent', [
             'file' => $file,
             'line' => $line,
         ]);
