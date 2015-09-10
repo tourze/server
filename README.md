@@ -21,6 +21,20 @@
             'call' => [
             ],
         ],
+        'session' => [
+            'class' => 'tourze\Server\Component\Session',
+            'params' => [
+            ],
+            'call' => [
+            ],
+        ],
+        'log' => [
+            'class' => 'tourze\Server\Component\Log',
+            'params' => [
+            ],
+            'call' => [
+            ],
+        ],
     ],
 ```
 
