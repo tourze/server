@@ -13,6 +13,7 @@ return [
             'siteList'       => [
                 'www.example.com' => __DIR__ . '/../example/web/',
             ],
+            //'initClass'      => '',
         ],
     ],
 

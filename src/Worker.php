@@ -162,14 +162,25 @@ class Worker extends BaseWorker
         }
 
         $config['name'] = $name;
-        // 根据socketName来判断，如果是http的话，有单独的处理
-        if (substr($socketName, 0, 4) == 'http')
+
+        // 如果有自定义初始化的class名
+        if (isset($config['initClass']))
         {
-            new Web($config);
+            $class = $config['initClass'];
+            unset($config['initClass']);
+            new $class($config);
         }
         else
         {
-            new Worker($config);
+            // 根据socketName来判断，如果是http的话，有单独的处理
+            if (substr($socketName, 0, 4) == 'http')
+            {
+                new Web($config);
+            }
+            else
+            {
+                new Worker($config);
+            }
         }
 
         return true;
