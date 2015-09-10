@@ -6,9 +6,8 @@ use League\CLImate\CLImate;
 use tourze\Base\Component\Log as BaseLog;
 
 /**
- * Workerman架构下的日志组件
+ * Server的日志组件
  *
- * @property string timeFormat
  * @package tourze\Server\Component
  */
 class Log extends BaseLog
@@ -20,25 +19,14 @@ class Log extends BaseLog
     public $climate;
 
     /**
-     * @var string
+     * @var string 输出日志的时间格式
      */
-    protected $_timeFormat = 'e Y-m-d H:i:s:u';
+    public $timeFormat = 'e Y-m-d H:i:s:u';
 
     /**
-     * @return string
+     * @var array 在此列表中的错误级别会被忽略
      */
-    public function getTimeFormat()
-    {
-        return $this->_timeFormat;
-    }
-
-    /**
-     * @param string $timeFormat
-     */
-    public function setTimeFormat($timeFormat)
-    {
-        $this->_timeFormat = $timeFormat;
-    }
+    public $ignoreLevels = [];
 
     /**
      * @inheritdoc
@@ -54,10 +42,25 @@ class Log extends BaseLog
     }
 
     /**
+     * 检查指定的级别是否被忽略了
+     *
+     * @param string $level
+     * @return bool
+     */
+    public function checkIgnoreList($level)
+    {
+        return in_array($level, $this->ignoreLevels);
+    }
+
+    /**
      * @inheritdoc
      */
     public function debug($log, array $context = [])
     {
+        if ($this->checkIgnoreList('debug'))
+        {
+            return;
+        }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
         $this->climate->yellow(date($this->timeFormat) . " DEBUG: $log [$context]");
     }
@@ -67,6 +70,10 @@ class Log extends BaseLog
      */
     public function info($log, array $context = [])
     {
+        if ($this->checkIgnoreList('info'))
+        {
+            return;
+        }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
         $this->climate->white(date($this->timeFormat) . " INFO: $log [$context]");
     }
@@ -76,6 +83,10 @@ class Log extends BaseLog
      */
     public function notice($log, array $context = [])
     {
+        if ($this->checkIgnoreList('notice'))
+        {
+            return;
+        }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
         $this->climate->blue(date($this->timeFormat) . " NOTICE: $log [$context]");
     }
@@ -85,6 +96,10 @@ class Log extends BaseLog
      */
     public function warning($log, array $context = [])
     {
+        if ($this->checkIgnoreList('warning'))
+        {
+            return;
+        }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
         $this->climate->red(date($this->timeFormat) . " WARNING: $log [$context]");
     }
@@ -94,6 +109,10 @@ class Log extends BaseLog
      */
     public function error($log, array $context = [])
     {
+        if ($this->checkIgnoreList('error'))
+        {
+            return;
+        }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
         $this->climate->lightRed(date($this->timeFormat) . " ERROR: $log [$context]");
     }
@@ -103,6 +122,10 @@ class Log extends BaseLog
      */
     public function critical($log, array $context = [])
     {
+        if ($this->checkIgnoreList('critical'))
+        {
+            return;
+        }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
         $this->climate->lightBlue(date($this->timeFormat) . " CRITICAL: $log [$context]");
     }
@@ -112,6 +135,10 @@ class Log extends BaseLog
      */
     public function alert($log, array $context = [])
     {
+        if ($this->checkIgnoreList('alert'))
+        {
+            return;
+        }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
         $this->climate->lightYellow(date($this->timeFormat) . " ALERT: $log [$context]");
     }
@@ -121,6 +148,10 @@ class Log extends BaseLog
      */
     public function emergency($log, array $context = [])
     {
+        if ($this->checkIgnoreList('emergency'))
+        {
+            return;
+        }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
         $this->climate->darkGray(date($this->timeFormat) . " EMERGENCY: $log [$context]");
     }
