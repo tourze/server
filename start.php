@@ -12,7 +12,7 @@ if ( ! extension_loaded('posix'))
     exit("Please install posix extension. See http://doc3.workerman.net/install/install.html\n");
 }
 
-require '../bootstrap.php';
+require 'bootstrap.php';
 
 Worker::load('web');
 Worker::runAll();
