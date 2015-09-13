@@ -2,7 +2,7 @@
   "name": "tourze/server",
   "description": "途者PHP框架-集成一些server相关的东西",
   "minimum-stability": "stable",
-  "license": "proprietary",
+  "license": "MIT",
   "authors": [
     {
       "name": "tourze",
