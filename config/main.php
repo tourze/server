@@ -2,6 +2,12 @@
 
 return [
 
+    'component' => [
+        'serverCli'    => [
+            'class'  => 'tourze\Server\Component\Cli',
+        ],
+    ],
+
     'server' => [
         // 默认的web配置
         'web' => [
@@ -11,7 +17,7 @@ return [
             'socketName'     => 'http://0.0.0.0:8080', // 默认监听8080端口
             'contextOptions' => [], // 上下文选项
             'siteList'       => [
-                'www.example.com' => __DIR__ . '/../example/web/',
+                'www.example.com' => __DIR__ . '/../web/',
             ],
             //'initClass'      => '',
         ],
