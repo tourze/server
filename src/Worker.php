@@ -186,4 +186,198 @@ class Worker extends BaseWorker
         return true;
     }
 
+    /**
+     * 打印帮助说明
+     *
+     * @param string $startFile
+     */
+    public static function printUsage($startFile)
+    {
+        Server::getCli()->yellow("\nUsage: php" . $startFile . " [ACTION]\n");
+        Server::getCli()->table([
+            [
+                'ACTION' => 'start',
+                'DESC' => 'Start all services',
+                'EXAMPLE' => "php $startFile start",
+            ],
+            [
+                'ACTION' => 'stop',
+                'DESC' => 'Stop all services',
+                'EXAMPLE' => "php $startFile stop",
+            ],
+            [
+                'ACTION' => 'restart',
+                'DESC' => '',
+                'EXAMPLE' => "php $startFile restart",
+            ],
+            [
+                'ACTION' => 'reload',
+                'DESC' => '',
+                'EXAMPLE' => "php $startFile reload",
+            ],
+            [
+                'ACTION' => 'status',
+                'DESC' => '',
+                'EXAMPLE' => "php $startFile status",
+            ],
+        ]);
+    }
+
+    /**
+     * 解析运行命令，输出更加好看的格式
+     *
+     * php start.php start | stop | restart | reload | status
+     *
+     */
+    public static function parseCommand()
+    {
+        // 检查运行命令的参数
+        global $argv;
+        $startFile = $argv[0];
+        if ( ! isset($argv[1]))
+        {
+            self::printUsage($startFile);
+            exit;
+        }
+
+        // 命令
+        $command = trim($argv[1]);
+
+        // 子命令，目前只支持-d
+        $command2 = isset($argv[2]) ? $argv[2] : '';
+
+        // 记录日志
+        $mode = '';
+        if ($command === 'start')
+        {
+            if ($command2 === '-d')
+            {
+                $mode = 'in DAEMON mode';
+            }
+            else
+            {
+                $mode = 'in DEBUG mode';
+            }
+        }
+        self::log("Workerman[$startFile] $command $mode");
+
+        // 检查主进程是否在运行
+        $master_pid = @file_get_contents(self::$pidFile);
+        $master_is_alive = $master_pid && @posix_kill($master_pid, 0);
+        if ($master_is_alive)
+        {
+            if ($command === 'start')
+            {
+                self::log("Workerman[$startFile] is running");
+            }
+        }
+        elseif ($command !== 'start' && $command !== 'restart')
+        {
+            self::log("Workerman[$startFile] not run");
+        }
+
+        // 根据命令做相应处理
+        switch ($command)
+        {
+            // 启动 workerman
+            case 'start':
+                if ($command2 === '-d')
+                {
+                    Worker::$daemonize = true;
+                }
+                break;
+            // 显示 workerman 运行状态
+            case 'status':
+                // 尝试删除统计文件，避免脏数据
+                if (is_file(self::$_statisticsFile))
+                {
+                    @unlink(self::$_statisticsFile);
+                }
+                // 向主进程发送 SIGUSR2 信号 ，然后主进程会向所有子进程发送 SIGUSR2 信号
+                // 所有进程收到 SIGUSR2 信号后会向 $_statisticsFile 写入自己的状态
+                posix_kill($master_pid, SIGUSR2);
+                // 睡眠100毫秒，等待子进程将自己的状态写入$_statisticsFile指定的文件
+                usleep(100000);
+                // 展示状态
+                readfile(self::$_statisticsFile);
+                exit(0);
+            // 重启 workerman
+            case 'restart':
+                // 停止 workeran
+            case 'stop':
+                self::log("Workerman[$startFile] is stoping ...");
+                // 想主进程发送SIGINT信号，主进程会向所有子进程发送SIGINT信号
+                $master_pid && posix_kill($master_pid, SIGINT);
+                // 如果 $timeout 秒后主进程没有退出则展示失败界面
+                $timeout = 5;
+                $start_time = time();
+                while (1)
+                {
+                    // 检查主进程是否存活
+                    $master_is_alive = $master_pid && posix_kill($master_pid, 0);
+                    if ($master_is_alive)
+                    {
+                        // 检查是否超过$timeout时间
+                        if (time() - $start_time >= $timeout)
+                        {
+                            self::log("Workerman[$startFile] stop fail");
+                            exit;
+                        }
+                        usleep(10000);
+                        continue;
+                    }
+                    self::log("Workerman[$startFile] stop success");
+                    // 是restart命令
+                    if ($command === 'stop')
+                    {
+                        exit(0);
+                    }
+                    // -d 说明是以守护进程的方式启动
+                    if ($command2 === '-d')
+                    {
+                        Worker::$daemonize = true;
+                    }
+                    break;
+                }
+                break;
+            // 平滑重启 workerman
+            case 'reload':
+                posix_kill($master_pid, SIGUSR1);
+                self::log("Workerman[$startFile] reload");
+                exit;
+            // 未知命令
+            default :
+                self::printUsage($startFile);
+                exit;
+        }
+    }
+
+    /**
+     * 运行所有worker实例
+     *
+     * @return void
+     */
+    public static function runAll()
+    {
+        // 初始化环境变量
+        self::init();
+        // 解析命令
+        self::parseCommand();
+        // 尝试以守护进程模式运行
+        self::daemonize();
+        // 初始化所有worker实例，主要是监听端口
+        self::initWorkers();
+        //  初始化所有信号处理函数
+        self::installSignal();
+        // 保存主进程pid
+        self::saveMasterPid();
+        // 创建子进程（worker进程）并运行
+        self::forkWorkers();
+        // 展示启动界面
+        self::displayUI();
+        // 尝试重定向标准输入输出
+        self::resetStd();
+        // 监控所有子进程（worker进程）
+        self::monitorWorkers();
+    }
 }

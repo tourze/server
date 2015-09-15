@@ -2,8 +2,8 @@
 
 namespace tourze\Server\Component;
 
-use League\CLImate\CLImate;
 use tourze\Base\Component\Log as BaseLog;
+use tourze\Server\Server;
 
 /**
  * Server的日志组件
@@ -14,11 +14,6 @@ class Log extends BaseLog
 {
 
     /**
-     * @var CLImate
-     */
-    public $climate;
-
-    /**
      * @var string 输出日志的时间格式
      */
     public $timeFormat = 'e Y-m-d H:i:s:u';
@@ -27,19 +22,6 @@ class Log extends BaseLog
      * @var array 在此列表中的错误级别会被忽略
      */
     public $ignoreLevels = [];
-
-    /**
-     * @inheritdoc
-     */
-    public function init()
-    {
-        parent::init();
-
-        if ( ! $this->climate)
-        {
-            $this->climate = new CLImate;
-        }
-    }
 
     /**
      * 检查指定的级别是否被忽略了
@@ -62,7 +44,7 @@ class Log extends BaseLog
             return;
         }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        $this->climate->yellow(date($this->timeFormat) . " DEBUG: $log [$context]");
+        Server::getCli()->yellow(date($this->timeFormat) . " DEBUG: $log [$context]");
     }
 
     /**
@@ -75,7 +57,7 @@ class Log extends BaseLog
             return;
         }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        $this->climate->white(date($this->timeFormat) . " INFO: $log [$context]");
+        Server::getCli()->white(date($this->timeFormat) . " INFO: $log [$context]");
     }
 
     /**
@@ -88,7 +70,7 @@ class Log extends BaseLog
             return;
         }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        $this->climate->blue(date($this->timeFormat) . " NOTICE: $log [$context]");
+        Server::getCli()->blue(date($this->timeFormat) . " NOTICE: $log [$context]");
     }
 
     /**
@@ -101,7 +83,7 @@ class Log extends BaseLog
             return;
         }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        $this->climate->red(date($this->timeFormat) . " WARNING: $log [$context]");
+        Server::getCli()->red(date($this->timeFormat) . " WARNING: $log [$context]");
     }
 
     /**
@@ -114,7 +96,7 @@ class Log extends BaseLog
             return;
         }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        $this->climate->lightRed(date($this->timeFormat) . " ERROR: $log [$context]");
+        Server::getCli()->lightRed(date($this->timeFormat) . " ERROR: $log [$context]");
     }
 
     /**
@@ -127,7 +109,7 @@ class Log extends BaseLog
             return;
         }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        $this->climate->lightBlue(date($this->timeFormat) . " CRITICAL: $log [$context]");
+        Server::getCli()->lightBlue(date($this->timeFormat) . " CRITICAL: $log [$context]");
     }
 
     /**
@@ -140,7 +122,7 @@ class Log extends BaseLog
             return;
         }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        $this->climate->lightYellow(date($this->timeFormat) . " ALERT: $log [$context]");
+        Server::getCli()->lightYellow(date($this->timeFormat) . " ALERT: $log [$context]");
     }
 
     /**
@@ -153,6 +135,6 @@ class Log extends BaseLog
             return;
         }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        $this->climate->darkGray(date($this->timeFormat) . " EMERGENCY: $log [$context]");
+        Server::getCli()->darkGray(date($this->timeFormat) . " EMERGENCY: $log [$context]");
     }
 }
