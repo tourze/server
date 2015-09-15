@@ -143,6 +143,7 @@ class Web extends Worker
             'uri'  => $_SERVER['REQUEST_URI'],
             'ip'   => $connection->getRemoteIp(),
             'port' => $connection->getRemotePort(),
+            'data' => $data,
         ]);
 
         // 请求的文件
@@ -191,7 +192,7 @@ class Web extends Worker
         if (is_file($file))
         {
             Base::getLog()->debug(__METHOD__ . ' request file existed', [
-                'file' => $file
+                'file' => $file,
             ]);
 
             // 判断是否是站点目录里的文件
@@ -282,7 +283,7 @@ class Web extends Worker
         else
         {
             Base::getLog()->warning(__METHOD__ . ' request file failed', [
-                'file' => $file
+                'file' => $file,
             ]);
 
             // 404
