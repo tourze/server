@@ -16,7 +16,7 @@ class Log extends BaseLog
     /**
      * @var string 输出日志的时间格式
      */
-    public $timeFormat = 'e Y-m-d H:i:s:u';
+    public $timeFormat = 'e Y-m-d H:i:s';
 
     /**
      * @var array 在此列表中的错误级别会被忽略
@@ -35,6 +35,16 @@ class Log extends BaseLog
     }
 
     /**
+     * 返回当前时间
+     *
+     * @return string
+     */
+    public function currentTime()
+    {
+        return date($this->timeFormat) . substr((string) microtime(), 1, 8);
+    }
+
+    /**
      * @inheritdoc
      */
     public function debug($log, array $context = [])
@@ -44,7 +54,7 @@ class Log extends BaseLog
             return;
         }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        Server::getCli()->yellow(date($this->timeFormat) . " DEBUG: $log [$context]");
+        Server::getCli()->yellow($this->currentTime() . " DEBUG: $log [$context]");
     }
 
     /**
@@ -57,7 +67,7 @@ class Log extends BaseLog
             return;
         }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        Server::getCli()->white(date($this->timeFormat) . " INFO: $log [$context]");
+        Server::getCli()->white($this->currentTime() . " INFO: $log [$context]");
     }
 
     /**
@@ -70,7 +80,7 @@ class Log extends BaseLog
             return;
         }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        Server::getCli()->blue(date($this->timeFormat) . " NOTICE: $log [$context]");
+        Server::getCli()->blue($this->currentTime() . " NOTICE: $log [$context]");
     }
 
     /**
@@ -83,7 +93,7 @@ class Log extends BaseLog
             return;
         }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        Server::getCli()->red(date($this->timeFormat) . " WARNING: $log [$context]");
+        Server::getCli()->red($this->currentTime() . " WARNING: $log [$context]");
     }
 
     /**
@@ -96,7 +106,7 @@ class Log extends BaseLog
             return;
         }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        Server::getCli()->lightRed(date($this->timeFormat) . " ERROR: $log [$context]");
+        Server::getCli()->lightRed($this->currentTime() . " ERROR: $log [$context]");
     }
 
     /**
@@ -109,7 +119,7 @@ class Log extends BaseLog
             return;
         }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        Server::getCli()->lightBlue(date($this->timeFormat) . " CRITICAL: $log [$context]");
+        Server::getCli()->lightBlue($this->currentTime() . " CRITICAL: $log [$context]");
     }
 
     /**
@@ -122,7 +132,7 @@ class Log extends BaseLog
             return;
         }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        Server::getCli()->lightYellow(date($this->timeFormat) . " ALERT: $log [$context]");
+        Server::getCli()->lightYellow($this->currentTime() . " ALERT: $log [$context]");
     }
 
     /**
@@ -135,6 +145,6 @@ class Log extends BaseLog
             return;
         }
         $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        Server::getCli()->darkGray(date($this->timeFormat) . " EMERGENCY: $log [$context]");
+        Server::getCli()->darkGray($this->currentTime() . " EMERGENCY: $log [$context]");
     }
 }
