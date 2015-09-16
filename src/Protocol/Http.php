@@ -70,7 +70,7 @@ class Http extends WorkerHttp
     {
         $sessionID = TextHelper::random(20, 'qwertyuiopasdfghjklzxcvbnm1234567890');
         Base::getLog()->debug(__METHOD__ . ' generate session id', [
-            'id' => $sessionID
+            'id' => $sessionID,
         ]);
         return $sessionID;
     }
@@ -106,7 +106,7 @@ class Http extends WorkerHttp
     public static function sessionStart()
     {
         Base::getLog()->debug(__METHOD__ . ' call session stared.', [
-            'ip' => Arr::get($_SERVER, 'REMOTE_ADDR')
+            'ip' => Arr::get($_SERVER, 'REMOTE_ADDR'),
         ]);
         if (PHP_SAPI != 'cli')
         {
@@ -118,7 +118,7 @@ class Http extends WorkerHttp
         {
             $sessionID = self::generateSession();
             Base::getLog()->debug(__METHOD__ . ' dispatch new session id.', [
-                'id' => $sessionID
+                'id' => $sessionID,
             ]);
             $_COOKIE[HttpCache::$sessionName] = $sessionID;
 
@@ -141,7 +141,7 @@ class Http extends WorkerHttp
         // 读取文件
         $fileName = self::getSessionFile($sessionID);
         Base::getLog()->debug(__METHOD__ . ' read session file.', [
-            'file' => $fileName
+            'file' => $fileName,
         ]);
         $raw = file_get_contents($fileName);
         if ($raw)
@@ -251,6 +251,7 @@ class Http extends WorkerHttp
 
         // 记录要输出的header
 
+        Base::getLog()->debug(__METHOD__ . ' final send header', $sendHeader);
         $sendHeader = implode("\r\n", $sendHeader);
         $sendHeader .= "\r\n\r\n";
 
@@ -262,4 +263,159 @@ class Http extends WorkerHttp
         return $sendHeader . $content;
     }
 
+    /**
+     * 从http数据包中解析$_POST、$_GET、$_COOKIE等
+     *
+     * @param string        $recv_buffer
+     * @param TcpConnection $connection
+     * @return array
+     */
+    public static function decode($recv_buffer, TcpConnection $connection)
+    {
+        // 初始化
+        Base::getLog()->debug(__METHOD__ . ' clean global variables');
+        $_POST = $_GET = $_COOKIE = $_REQUEST = $_SESSION = $_FILES = [];
+        $GLOBALS['HTTP_RAW_POST_DATA'] = '';
+        $_SERVER = [
+            'QUERY_STRING'         => '',
+            'REQUEST_METHOD'       => '',
+            'REQUEST_URI'          => '',
+            'SERVER_PROTOCOL'      => '',
+            'SERVER_SOFTWARE'      => 'tourze/' . Base::VERSION,
+            'SERVER_NAME'          => '',
+            'HTTP_HOST'            => '',
+            'HTTP_USER_AGENT'      => '',
+            'HTTP_ACCEPT'          => '',
+            'HTTP_ACCEPT_LANGUAGE' => '',
+            'HTTP_ACCEPT_ENCODING' => '',
+            'HTTP_COOKIE'          => '',
+            'HTTP_CONNECTION'      => '',
+            'REMOTE_ADDR'          => '',
+            'REMOTE_PORT'          => '0',
+        ];
+
+        Base::getLog()->debug(__METHOD__ . ' clean previous headers');
+        // 清空上次的数据
+        HttpCache::$header = ['Connection: keep-alive'];
+        HttpCache::$instance = new HttpCache();
+
+        // 将header分割成数组
+        list($httpHeader, $httpBody) = explode("\r\n\r\n", $recv_buffer, 2);
+        $headerData = explode("\r\n", $httpHeader);
+
+        // 第一行为比较重要的一行
+        $firstLine = array_shift($headerData);
+        list($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI'], $_SERVER['SERVER_PROTOCOL']) = explode(' ', $firstLine);
+        Base::getLog()->debug(__METHOD__ . ' receive http request', [
+            'method'   => $_SERVER['REQUEST_METHOD'],
+            'uri'      => $_SERVER['REQUEST_URI'],
+            'protocol' => $_SERVER['SERVER_PROTOCOL'],
+        ]);
+
+        $httpPostBoundary = '';
+        foreach ($headerData as $content)
+        {
+            // \r\n\r\n
+            if (empty($content))
+            {
+                continue;
+            }
+            list($key, $value) = explode(':', $content, 2);
+            $key = strtolower($key);
+            $value = trim($value);
+            switch ($key)
+            {
+                // HTTP_HOST
+                case 'host':
+                    $_SERVER['HTTP_HOST'] = $value;
+                    $tmp = explode(':', $value);
+                    $_SERVER['SERVER_NAME'] = $tmp[0];
+                    if (isset($tmp[1]))
+                    {
+                        $_SERVER['SERVER_PORT'] = $tmp[1];
+                    }
+                    break;
+                // cookie
+                case 'cookie':
+                    $_SERVER['HTTP_COOKIE'] = $value;
+                    parse_str(str_replace('; ', '&', $_SERVER['HTTP_COOKIE']), $_COOKIE);
+                    break;
+                // user-agent
+                case 'user-agent':
+                    $_SERVER['HTTP_USER_AGENT'] = $value;
+                    break;
+                // accept
+                case 'accept':
+                    $_SERVER['HTTP_ACCEPT'] = $value;
+                    break;
+                // accept-language
+                case 'accept-language':
+                    $_SERVER['HTTP_ACCEPT_LANGUAGE'] = $value;
+                    break;
+                // accept-encoding
+                case 'accept-encoding':
+                    $_SERVER['HTTP_ACCEPT_ENCODING'] = $value;
+                    break;
+                // connection
+                case 'connection':
+                    $_SERVER['HTTP_CONNECTION'] = $value;
+                    break;
+                case 'referer':
+                    $_SERVER['HTTP_REFERER'] = $value;
+                    break;
+                case 'if-modified-since':
+                    $_SERVER['HTTP_IF_MODIFIED_SINCE'] = $value;
+                    break;
+                case 'if-none-match':
+                    $_SERVER['HTTP_IF_NONE_MATCH'] = $value;
+                    break;
+                case 'content-type':
+                    if ( ! preg_match('/boundary="?(\S+)"?/', $value, $match))
+                    {
+                        $_SERVER['CONTENT_TYPE'] = $value;
+                    }
+                    else
+                    {
+                        $_SERVER['CONTENT_TYPE'] = 'multipart/form-data';
+                        $httpPostBoundary = '--' . $match[1];
+                    }
+                    break;
+            }
+        }
+
+        // 需要解析$_POST
+        if ($_SERVER['REQUEST_METHOD'] === 'POST')
+        {
+            if (isset($_SERVER['CONTENT_TYPE']) && $_SERVER['CONTENT_TYPE'] === 'multipart/form-data')
+            {
+                self::parseUploadFiles($httpBody, $httpPostBoundary);
+            }
+            else
+            {
+                parse_str($httpBody, $_POST);
+                $GLOBALS['HTTP_RAW_POST_DATA'] = $httpBody;
+            }
+        }
+
+        // QUERY_STRING
+        $_SERVER['QUERY_STRING'] = parse_url($_SERVER['REQUEST_URI'], PHP_URL_QUERY);
+        if ($_SERVER['QUERY_STRING'])
+        {
+            // $GET
+            parse_str($_SERVER['QUERY_STRING'], $_GET);
+        }
+        else
+        {
+            $_SERVER['QUERY_STRING'] = '';
+        }
+
+        // REQUEST
+        $_REQUEST = array_merge($_GET, $_POST);
+
+        // REMOTE_ADDR REMOTE_PORT
+        $_SERVER['REMOTE_ADDR'] = $connection->getRemoteIp();
+        $_SERVER['REMOTE_PORT'] = $connection->getRemotePort();
+
+        return ['get' => $_GET, 'post' => $_POST, 'cookie' => $_COOKIE, 'server' => $_SERVER, 'files' => $_FILES];
+    }
 }

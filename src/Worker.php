@@ -7,7 +7,9 @@ use tourze\Base\Base;
 use tourze\Base\Config;
 use tourze\Base\Helper\Arr;
 use tourze\Server\Exception\BaseException;
+use Workerman\Connection\ConnectionInterface;
 use Workerman\Events\EventInterface;
+use Workerman\Lib\Timer;
 use Workerman\Worker as BaseWorker;
 
 /**
@@ -17,6 +19,11 @@ use Workerman\Worker as BaseWorker;
  */
 class Worker extends BaseWorker
 {
+
+    /**
+     * @var string 运行 status 命令时用于保存结果的文件名
+     */
+    public static $statusFile = '';
 
     /**
      * @var array
@@ -48,6 +55,47 @@ class Worker extends BaseWorker
                 $this->$k = $v;
             }
         }
+    }
+
+    /**
+     * 初始化一些环境变量
+     *
+     * @return void
+     */
+    public static function init()
+    {
+        // 如果没设置$pidFile，则生成默认值
+        if (empty(self::$pidFile))
+        {
+            $backtrace = debug_backtrace();
+            self::$_startFile = $backtrace[count($backtrace) - 1]['file'];
+            self::$pidFile = sys_get_temp_dir() . "/workerman." . str_replace('/', '_', self::$_startFile) . ".pid";
+        }
+        // 没有设置日志文件，则生成一个默认值
+        if (empty(self::$logFile))
+        {
+            self::$logFile = __DIR__ . '/../server.log';
+        }
+        // 标记状态为启动中
+        self::$_status = self::STATUS_STARTING;
+
+        // 启动时间戳
+        self::$_globalStatistics['start_timestamp'] = time();
+        Base::getLog()->debug(__METHOD__ . ' worker start timestamp', [
+            'time' => self::$_globalStatistics['start_timestamp'],
+        ]);
+
+        // 设置status文件位置
+        self::$statusFile = sys_get_temp_dir() . '/workerman.status';
+        Base::getLog()->debug(__METHOD__ . ' set status file', [
+            'file' => self::$statusFile,
+        ]);
+
+        // 尝试设置进程名称（需要php>=5.5或者安装了proctitle扩展）
+        self::setProcessTitle('WorkerMan: master process  start_file=' . self::$_startFile);
+
+        // 初始化定时器
+        Timer::init();
     }
 
     /**
@@ -196,28 +244,28 @@ class Worker extends BaseWorker
         Server::getCli()->yellow("\nUsage: php" . $startFile . " [ACTION]\n");
         Server::getCli()->table([
             [
-                'ACTION' => 'start',
-                'DESC' => 'Start all services',
+                'ACTION'  => 'start',
+                'DESC'    => 'Start all services',
                 'EXAMPLE' => "php $startFile start",
             ],
             [
-                'ACTION' => 'stop',
-                'DESC' => 'Stop all services',
+                'ACTION'  => 'stop',
+                'DESC'    => 'Stop all services',
                 'EXAMPLE' => "php $startFile stop",
             ],
             [
-                'ACTION' => 'restart',
-                'DESC' => '',
+                'ACTION'  => 'restart',
+                'DESC'    => 'Restart  all running services',
                 'EXAMPLE' => "php $startFile restart",
             ],
             [
-                'ACTION' => 'reload',
-                'DESC' => '',
+                'ACTION'  => 'reload',
+                'DESC'    => 'Reload all running services',
                 'EXAMPLE' => "php $startFile reload",
             ],
             [
-                'ACTION' => 'status',
-                'DESC' => '',
+                'ACTION'  => 'status',
+                'DESC'    => 'Response current service status',
                 'EXAMPLE' => "php $startFile status",
             ],
         ]);
@@ -259,21 +307,39 @@ class Worker extends BaseWorker
                 $mode = 'in DEBUG mode';
             }
         }
-        self::log("Workerman[$startFile] $command $mode");
+
+        Base::getLog()->debug(__METHOD__ . ' parse and execute command', [
+            'file'    => $startFile,
+            'command' => $command,
+            'mode'    => $mode,
+        ]);
 
         // 检查主进程是否在运行
-        $master_pid = @file_get_contents(self::$pidFile);
-        $master_is_alive = $master_pid && @posix_kill($master_pid, 0);
-        if ($master_is_alive)
+        $masterPid = @file_get_contents(self::$pidFile);
+        Base::getLog()->debug(__METHOD__ . ' get master pid from pidFile', [
+            'file' => self::$pidFile,
+            'pid'  => $masterPid,
+        ]);
+
+        $masterIsAlive = $masterPid && @posix_kill($masterPid, 0);
+        Base::getLog()->debug(__METHOD__ . ' if master is alive', [
+            'alive' => $masterIsAlive,
+        ]);
+
+        if ($masterIsAlive)
         {
             if ($command === 'start')
             {
-                self::log("Workerman[$startFile] is running");
+                Base::getLog()->debug(__METHOD__ . ' server is running', [
+                    'file' => $startFile,
+                ]);
             }
         }
         elseif ($command !== 'start' && $command !== 'restart')
         {
-            self::log("Workerman[$startFile] not run");
+            Base::getLog()->debug(__METHOD__ . ' server is not running', [
+                'file' => $startFile,
+            ]);
         }
 
         // 根据命令做相应处理
@@ -289,36 +355,48 @@ class Worker extends BaseWorker
             // 显示 workerman 运行状态
             case 'status':
                 // 尝试删除统计文件，避免脏数据
-                if (is_file(self::$_statisticsFile))
+                if (is_file(self::$statusFile))
                 {
-                    @unlink(self::$_statisticsFile);
+                    Base::getLog()->debug(__METHOD__ . ' delete old status file', [
+                        'file' => self::$statusFile,
+                    ]);
+                    @unlink(self::$statusFile);
                 }
                 // 向主进程发送 SIGUSR2 信号 ，然后主进程会向所有子进程发送 SIGUSR2 信号
-                // 所有进程收到 SIGUSR2 信号后会向 $_statisticsFile 写入自己的状态
-                posix_kill($master_pid, SIGUSR2);
-                // 睡眠100毫秒，等待子进程将自己的状态写入$_statisticsFile指定的文件
+                // 所有进程收到 SIGUSR2 信号后会向 $statusFile 写入自己的状态
+                posix_kill($masterPid, SIGUSR2);
+                // 睡眠100毫秒，等待子进程将自己的状态写入 $statusFile 指定的文件
                 usleep(100000);
                 // 展示状态
-                readfile(self::$_statisticsFile);
+                if ( ! is_file(self::$statusFile))
+                {
+                    exit("Status file is missing.\n");
+                }
+                readfile(self::$statusFile);
                 exit(0);
             // 重启 workerman
             case 'restart':
                 // 停止 workeran
+
             case 'stop':
-                self::log("Workerman[$startFile] is stoping ...");
+
+                Base::getLog()->debug(__METHOD__ . ' stopping all services', [
+                    'file' => $startFile,
+                ]);
+
                 // 想主进程发送SIGINT信号，主进程会向所有子进程发送SIGINT信号
-                $master_pid && posix_kill($master_pid, SIGINT);
+                $masterPid && posix_kill($masterPid, SIGINT);
                 // 如果 $timeout 秒后主进程没有退出则展示失败界面
                 $timeout = 5;
-                $start_time = time();
+                $startTime = time();
                 while (1)
                 {
                     // 检查主进程是否存活
-                    $master_is_alive = $master_pid && posix_kill($master_pid, 0);
-                    if ($master_is_alive)
+                    $masterIsAlive = $masterPid && posix_kill($masterPid, 0);
+                    if ($masterIsAlive)
                     {
                         // 检查是否超过$timeout时间
-                        if (time() - $start_time >= $timeout)
+                        if (time() - $startTime >= $timeout)
                         {
                             self::log("Workerman[$startFile] stop fail");
                             exit;
@@ -342,7 +420,7 @@ class Worker extends BaseWorker
                 break;
             // 平滑重启 workerman
             case 'reload':
-                posix_kill($master_pid, SIGUSR1);
+                posix_kill($masterPid, SIGUSR1);
                 self::log("Workerman[$startFile] reload");
                 exit;
             // 未知命令
@@ -350,6 +428,126 @@ class Worker extends BaseWorker
                 self::printUsage($startFile);
                 exit;
         }
+    }
+
+    /**
+     * 尝试以守护进程的方式运行
+     *
+     * @throws Exception
+     */
+    protected static function daemonize()
+    {
+        Base::getLog()->debug(__METHOD__ . ' calling daemonize', [
+            'daemonize' => self::$daemonize,
+        ]);
+        if ( ! self::$daemonize)
+        {
+            return;
+        }
+
+        umask(0);
+        $pid = pcntl_fork();
+        if (-1 === $pid)
+        {
+            throw new Exception('fork fail');
+        }
+        elseif ($pid > 0)
+        {
+            exit(0);
+        }
+        if (-1 === posix_setsid())
+        {
+            throw new Exception("setsid fail");
+        }
+        // fork again avoid SVR4 system regain the control of terminal
+        $pid = pcntl_fork();
+        if (-1 === $pid)
+        {
+            throw new Exception("fork fail");
+        }
+        elseif (0 !== $pid)
+        {
+            exit(0);
+        }
+    }
+
+    /**
+     * 重定向标准输入输出
+     *
+     * @throws Exception
+     */
+    protected static function resetStd()
+    {
+        if ( ! self::$daemonize)
+        {
+            return;
+        }
+        global $STDOUT, $STDERR;
+        $handle = fopen(self::$stdoutFile, "a");
+        if ($handle)
+        {
+            unset($handle);
+            @fclose(STDOUT);
+            @fclose(STDERR);
+            $STDOUT = fopen(self::$stdoutFile, "a");
+            $STDERR = fopen(self::$stdoutFile, "a");
+        }
+        else
+        {
+            throw new Exception('can not open stdoutFile ' . self::$stdoutFile);
+        }
+    }
+
+    /**
+     * 将当前进程的统计信息写入到统计文件
+     *
+     * @return void
+     */
+    protected static function writeStatisticsToStatusFile()
+    {
+        // 主进程部分
+        if (self::$_masterPid === posix_getpid())
+        {
+            $loadAvg = sys_getloadavg();
+            file_put_contents(self::$statusFile, "---------------------------------------GLOBAL STATUS--------------------------------------------\n");
+            file_put_contents(self::$statusFile, 'Tourze version:' . Base::version() . "          PHP version:" . PHP_VERSION . "\n", FILE_APPEND);
+            file_put_contents(self::$statusFile, 'start time:' . date('Y-m-d H:i:s', self::$_globalStatistics['start_timestamp']) . '   run ' . floor((time() - self::$_globalStatistics['start_timestamp']) / (24 * 60 * 60)) . ' days ' . floor(((time() - self::$_globalStatistics['start_timestamp']) % (24 * 60 * 60)) / (60 * 60)) . " hours   \n", FILE_APPEND);
+            file_put_contents(self::$statusFile, 'load average: ' . implode(", ", $loadAvg) . "\n", FILE_APPEND);
+            file_put_contents(self::$statusFile, count(self::$_pidMap) . ' workers       ' . count(self::getAllWorkerPids()) . " processes\n", FILE_APPEND);
+            file_put_contents(self::$statusFile, str_pad('worker_name', self::$_maxWorkerNameLength) . " exit_status     exit_count\n", FILE_APPEND);
+            foreach (self::$_pidMap as $worker_id => $worker_pid_array)
+            {
+                $worker = self::$_workers[$worker_id];
+                if (isset(self::$_globalStatistics['worker_exit_info'][$worker_id]))
+                {
+                    foreach (self::$_globalStatistics['worker_exit_info'][$worker_id] as $worker_exit_status =>
+                             $worker_exit_count)
+                    {
+                        file_put_contents(self::$statusFile, str_pad($worker->name, self::$_maxWorkerNameLength) . " " . str_pad($worker_exit_status, 16) . " $worker_exit_count\n", FILE_APPEND);
+                    }
+                }
+                else
+                {
+                    file_put_contents(self::$statusFile, str_pad($worker->name, self::$_maxWorkerNameLength) . " " . str_pad(0, 16) . " 0\n", FILE_APPEND);
+                }
+            }
+            file_put_contents(self::$statusFile, "---------------------------------------PROCESS STATUS-------------------------------------------\n", FILE_APPEND);
+            file_put_contents(self::$statusFile, "pid\tmemory  " . str_pad('listening', self::$_maxSocketNameLength) . " " . str_pad('worker_name', self::$_maxWorkerNameLength) . " connections " . str_pad('total_request', 13) . " " . str_pad('send_fail', 9) . " " . str_pad('throw_exception', 15) . "\n", FILE_APPEND);
+
+            chmod(self::$statusFile, 0722);
+
+            foreach (self::getAllWorkerPids() as $worker_pid)
+            {
+                posix_kill($worker_pid, SIGUSR2);
+            }
+            return;
+        }
+
+        // 子进程部分
+        $worker = current(self::$_workers);
+        $statusStr = posix_getpid() . "\t" . str_pad(round(memory_get_usage(true) / (1024 * 1024), 2) . "M", 7) . " " . str_pad($worker->getSocketName(), self::$_maxSocketNameLength) . " " . str_pad(($worker->name === $worker->getSocketName() ? 'none' : $worker->name), self::$_maxWorkerNameLength) . " ";
+        $statusStr .= str_pad(ConnectionInterface::$statistics['connection_count'], 11) . " " . str_pad(ConnectionInterface::$statistics['total_request'], 14) . " " . str_pad(ConnectionInterface::$statistics['send_fail'], 9) . " " . str_pad(ConnectionInterface::$statistics['throw_exception'], 15) . "\n";
+        file_put_contents(self::$statusFile, $statusStr, FILE_APPEND);
     }
 
     /**
