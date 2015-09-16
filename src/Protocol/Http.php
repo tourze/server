@@ -416,6 +416,14 @@ class Http extends WorkerHttp
         $_SERVER['REMOTE_ADDR'] = $connection->getRemoteIp();
         $_SERVER['REMOTE_PORT'] = $connection->getRemotePort();
 
-        return ['get' => $_GET, 'post' => $_POST, 'cookie' => $_COOKIE, 'server' => $_SERVER, 'files' => $_FILES];
+        $result = [
+            'get'    => $_GET,
+            'post'   => $_POST,
+            'cookie' => $_COOKIE,
+            'server' => $_SERVER,
+            'files'  => $_FILES,
+        ];
+        Base::getLog()->debug(__METHOD__ . ' get request data', $result);
+        return $result;
     }
 }
