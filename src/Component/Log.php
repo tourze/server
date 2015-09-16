@@ -45,6 +45,21 @@ class Log extends BaseLog
     }
 
     /**
+     * 格式化上下文信息
+     *
+     * @param array $context
+     * @return string
+     */
+    public function formatContext($context)
+    {
+        if (empty($context))
+        {
+            return '';
+        }
+        return '[' . stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE)) . ']';
+    }
+
+    /**
      * @inheritdoc
      */
     public function debug($log, array $context = [])
@@ -53,8 +68,8 @@ class Log extends BaseLog
         {
             return;
         }
-        $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        Server::getCli()->yellow($this->currentTime() . " DEBUG: $log [$context]");
+        $context = $this->formatContext($context);
+        Server::getCli()->yellow($this->currentTime() . " DEBUG: $log $context");
     }
 
     /**
@@ -66,8 +81,8 @@ class Log extends BaseLog
         {
             return;
         }
-        $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        Server::getCli()->white($this->currentTime() . " INFO: $log [$context]");
+        $context = $this->formatContext($context);
+        Server::getCli()->white($this->currentTime() . " INFO: $log $context");
     }
 
     /**
@@ -79,8 +94,8 @@ class Log extends BaseLog
         {
             return;
         }
-        $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        Server::getCli()->blue($this->currentTime() . " NOTICE: $log [$context]");
+        $context = $this->formatContext($context);
+        Server::getCli()->blue($this->currentTime() . " NOTICE: $log $context");
     }
 
     /**
@@ -92,8 +107,8 @@ class Log extends BaseLog
         {
             return;
         }
-        $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        Server::getCli()->red($this->currentTime() . " WARNING: $log [$context]");
+        $context = $this->formatContext($context);
+        Server::getCli()->red($this->currentTime() . " WARNING: $log $context");
     }
 
     /**
@@ -105,8 +120,8 @@ class Log extends BaseLog
         {
             return;
         }
-        $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        Server::getCli()->lightRed($this->currentTime() . " ERROR: $log [$context]");
+        $context = $this->formatContext($context);
+        Server::getCli()->lightRed($this->currentTime() . " ERROR: $log $context");
     }
 
     /**
@@ -118,8 +133,8 @@ class Log extends BaseLog
         {
             return;
         }
-        $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        Server::getCli()->lightBlue($this->currentTime() . " CRITICAL: $log [$context]");
+        $context = $this->formatContext($context);
+        Server::getCli()->lightBlue($this->currentTime() . " CRITICAL: $log $context");
     }
 
     /**
@@ -131,8 +146,8 @@ class Log extends BaseLog
         {
             return;
         }
-        $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        Server::getCli()->lightYellow($this->currentTime() . " ALERT: $log [$context]");
+        $context = $this->formatContext($context);
+        Server::getCli()->lightYellow($this->currentTime() . " ALERT: $log $context");
     }
 
     /**
@@ -144,7 +159,7 @@ class Log extends BaseLog
         {
             return;
         }
-        $context = stripslashes(json_encode($context, JSON_UNESCAPED_UNICODE));
-        Server::getCli()->darkGray($this->currentTime() . " EMERGENCY: $log [$context]");
+        $context = $this->formatContext($context);
+        Server::getCli()->darkGray($this->currentTime() . " EMERGENCY: $log $context");
     }
 }
