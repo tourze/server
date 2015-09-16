@@ -17,7 +17,7 @@ return [
             'socketName'     => 'http://0.0.0.0:8080', // 默认监听8080端口
             'contextOptions' => [], // 上下文选项
             'siteList'       => [
-                'www.example.com' => __DIR__ . '/../web/',
+                'www.example.com' => realpath(__DIR__ . '/../web'),
             ],
             //'initClass'      => '',
         ],

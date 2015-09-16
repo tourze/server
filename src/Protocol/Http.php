@@ -151,7 +151,7 @@ class Http extends WorkerHttp
         }
         else
         {
-            Base::getLog()->warning(__METHOD__ . ' session file not found', [
+            Base::getLog()->notice(__METHOD__ . ' session file not found', [
                 'file' => $fileName,
             ]);
         }
