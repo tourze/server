@@ -55,9 +55,14 @@ class Web extends Worker
     protected $rewrite = false;
 
     /**
-     * @var string 默认错误页
+     * @var string 400错误内容
      */
-    protected $errorFile = 'error.php';
+    protected $error400 = '<h1>400 Bad Request</h1>';
+
+    /**
+     * @var string 404错误页
+     */
+    protected $error404 = '<html><head><title>404 页面不存在</title></head><body><center><h3>404 Not Found</h3></center></body></html>';
 
     /**
      * 修改原构造方法
@@ -156,7 +161,7 @@ class Web extends Worker
                 'ip'   => $connection->getRemoteIp(),
                 'port' => $connection->getRemotePort(),
             ]);
-            return $connection->close('<h1>400 Bad Request</h1>');
+            return $connection->close($this->error400);
         }
 
         $path = $urlInfo['path'];
@@ -192,7 +197,8 @@ class Web extends Worker
         if (is_file($file))
         {
             Base::getLog()->debug(__METHOD__ . ' request file existed', [
-                'file' => $file,
+                'file'      => $file,
+                'extension' => $extension,
             ]);
 
             // 判断是否是站点目录里的文件
@@ -210,6 +216,7 @@ class Web extends Worker
             $file = realpath($file);
 
             // 如果请求的是php文件
+            // PHP文件需要include
             if ($extension === 'php')
             {
                 Base::getLog()->debug(__METHOD__ . ' handle request', [
@@ -218,7 +225,11 @@ class Web extends Worker
                     'port' => $connection->getRemotePort(),
                     'file' => $file,
                 ]);
+
+                Base::getLog()->debug(__METHOD__ . ' clean components - start');
                 Base::cleanComponents();
+                Base::getLog()->debug(__METHOD__ . ' clean components - end');
+
                 $cwd = getcwd();
                 chdir($rootDir);
                 ini_set('display_errors', 'off');
@@ -230,6 +241,11 @@ class Web extends Worker
                     // $_SERVER变量
                     $_SERVER['REMOTE_ADDR'] = $connection->getRemoteIp();
                     $_SERVER['REMOTE_PORT'] = $connection->getRemotePort();
+                    Base::getLog()->debug(__METHOD__ . ' dispatch client info', [
+                        'ip'   => $_SERVER['REMOTE_ADDR'],
+                        'port' => $_SERVER['REMOTE_PORT'],
+                    ]);
+
                     include $file;
                 }
                 catch (Exception $e)
@@ -247,48 +263,59 @@ class Web extends Worker
                 }
                 $content = ob_get_clean();
                 ini_set('display_errors', 'on');
-                $connection->close($content);
+                $result = $connection->close($content);
                 chdir($cwd);
-                return;
+                return $result;
             }
-
             // 请求的是静态资源文件
-            Base::getHttp()->header('Content-Type: ' . Mime::getMimeFromExtension($extension, self::$defaultMimeType));
-
-            // 获取文件信息
-            $info = stat($file);
-
-            $modified_time = $info ? date('D, d M Y H:i:s', $info['mtime']) . ' GMT' : '';
-
-            // 如果有$_SERVER['HTTP_IF_MODIFIED_SINCE']
-            if ( ! empty($_SERVER['HTTP_IF_MODIFIED_SINCE']) && $info)
+            else
             {
-                // 文件没有更改则直接304
-                if ($modified_time === $_SERVER['HTTP_IF_MODIFIED_SINCE'])
+                $contentType = Mime::getMimeFromExtension($extension, self::$defaultMimeType);
+                Base::getLog()->debug(__METHOD__ . ' get static file content type', [
+                    'extension'   => $extension,
+                    'contentType' => $contentType,
+                ]);
+                Base::getHttp()->header('Content-Type: ' . $contentType);
+
+                // 获取文件信息
+                $info = stat($file);
+
+                $modifiedTime = $info ? date('D, d M Y H:i:s', Arr::get($info, 'mtime')) . ' GMT' : '';
+
+                // 如果有$_SERVER['HTTP_IF_MODIFIED_SINCE']
+                if ( ! empty($_SERVER['HTTP_IF_MODIFIED_SINCE']) && $info)
                 {
-                    // 304
-                    Base::getHttp()->header('HTTP/1.1 304 Not Modified');
-                    // 发送给客户端
-                    return $connection->close('');
+                    // 文件没有更改则直接304
+                    if ($modifiedTime === $_SERVER['HTTP_IF_MODIFIED_SINCE'])
+                    {
+                        Base::getLog()->debug(__METHOD__ . ' no modified, return 304');
+                        // 304
+                        Base::getHttp()->header('HTTP/1.1 304 Not Modified');
+                        // 发送给客户端
+                        return $connection->close('');
+                    }
                 }
-            }
 
-            if ($modified_time)
-            {
-                Base::getHttp()->header("Last-Modified: $modified_time");
+                if ($modifiedTime)
+                {
+                    Base::getLog()->debug(__METHOD__ . ' set last modified time', [
+                        'time' => $modifiedTime,
+                    ]);
+                    Base::getHttp()->header("Last-Modified: $modifiedTime");
+                }
+                // 发送给客户端
+                return $connection->close(file_get_contents($file));
             }
-            // 发送给客户端
-            return $connection->close(file_get_contents($file));
         }
         else
         {
-            Base::getLog()->warning(__METHOD__ . ' request file failed', [
+            Base::getLog()->warning(__METHOD__ . ' requested file not found', [
                 'file' => $file,
             ]);
 
             // 404
             Base::getHttp()->header("HTTP/1.1 404 Not Found");
-            return $connection->close('<html><head><title>404 页面不存在</title></head><body><center><h3>404 Not Found</h3></center></body></html>');
+            return $connection->close($this->error404);
         }
     }
 }

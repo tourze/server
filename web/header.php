@@ -1,8 +1,7 @@
 <?php
 
-foreach ($_GET as $k => $v)
-{
-    \tourze\Base\Base::getHttp()->header($v);
-}
+use tourze\Base\Base;
+
+Base::getHttp()->header('Content-Type: application/json');
 
 echo time();

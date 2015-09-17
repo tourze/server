@@ -117,9 +117,20 @@ class Http extends BaseHttp
     public function headersSent(&$file = null, &$line = null)
     {
         Base::getLog()->debug(__METHOD__ . ' check if header sent', [
-            'file' => $file,
-            'line' => $line,
+            'file'   => $file,
+            'line'   => $line,
+            'exists' => HttpCache::$header,
         ]);
-        return ! empty(HttpCache::$header);
+
+        if (count(HttpCache::$header) == 1)
+        {
+            return HttpCache::$header[0] == 'Connection: keep-alive'
+                ? false
+                : true;
+        }
+        else
+        {
+            return ! empty(HttpCache::$header);
+        }
     }
 }
