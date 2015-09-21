@@ -239,8 +239,6 @@ class Web extends Worker
                 try
                 {
                     // $_SERVER变量
-                    $_SERVER['REMOTE_ADDR'] = $connection->getRemoteIp();
-                    $_SERVER['REMOTE_PORT'] = $connection->getRemotePort();
                     $_SERVER['HOME'] = $_SERVER['DOCUMENT_ROOT'] = dirname($file);
                     $_SERVER['SCRIPT_FILENAME'] = $file;
                     Base::getLog()->debug(__METHOD__ . ' dispatch client info', [

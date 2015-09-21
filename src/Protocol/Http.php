@@ -276,7 +276,10 @@ class Http extends WorkerHttp
         Base::getLog()->debug(__METHOD__ . ' clean global variables');
         $_POST = $_GET = $_COOKIE = $_REQUEST = $_SESSION = $_FILES = [];
         $GLOBALS['HTTP_RAW_POST_DATA'] = '';
+
+        $userInfo = posix_getpwuid(posix_getuid());
         $_SERVER = [
+            'USER'                 => Arr::get($userInfo, 'name', ''),
             'HOME'                 => '',
             'QUERY_STRING'         => '',
             'REQUEST_METHOD'       => '',
@@ -294,7 +297,9 @@ class Http extends WorkerHttp
             'HTTP_CONNECTION'      => '',
             'REMOTE_ADDR'          => '',
             'REMOTE_PORT'          => '0',
+            'REQUEST_TIME'         => time(),
         ];
+        $_SERVER['REQUEST_TIME_FLOAT'] = $_SERVER['REQUEST_TIME'] . substr((string) microtime(), 1, 5);
 
         Base::getLog()->debug(__METHOD__ . ' clean previous headers');
         // 清空上次的数据
@@ -308,7 +313,7 @@ class Http extends WorkerHttp
         // 第一行为比较重要的一行
         $firstLine = array_shift($headerData);
         list($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI'], $_SERVER['SERVER_PROTOCOL']) = explode(' ', $firstLine);
-        $_SERVER['SCRIPT_NAME'] = $_SERVER['DOCUMENT_URI'] = $_SERVER['REQUEST_URI'];
+        $_SERVER['PHP_SELF'] = $_SERVER['SCRIPT_NAME'] = $_SERVER['DOCUMENT_URI'] = $_SERVER['REQUEST_URI'];
         Base::getLog()->debug(__METHOD__ . ' receive http request', [
             'method'   => $_SERVER['REQUEST_METHOD'],
             'uri'      => $_SERVER['REQUEST_URI'],
@@ -418,6 +423,10 @@ class Http extends WorkerHttp
         // REMOTE_ADDR REMOTE_PORT
         $_SERVER['REMOTE_ADDR'] = $connection->getRemoteIp();
         $_SERVER['REMOTE_PORT'] = $connection->getRemotePort();
+
+        // 这两处要怎么读取呢？
+        $_SERVER['SERVER_ADDR'] = null;
+        $_SERVER['SERVER_PORT'] = null;
 
         $result = [
             'get'    => $_GET,
