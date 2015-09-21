@@ -277,12 +277,14 @@ class Http extends WorkerHttp
         $_POST = $_GET = $_COOKIE = $_REQUEST = $_SESSION = $_FILES = [];
         $GLOBALS['HTTP_RAW_POST_DATA'] = '';
         $_SERVER = [
+            'HOME'                 => '',
             'QUERY_STRING'         => '',
             'REQUEST_METHOD'       => '',
             'REQUEST_URI'          => '',
             'SERVER_PROTOCOL'      => '',
             'SERVER_SOFTWARE'      => 'tourze/' . Base::VERSION,
             'SERVER_NAME'          => '',
+            'SCRIPT_FILENAME'      => '',
             'HTTP_HOST'            => '',
             'HTTP_USER_AGENT'      => '',
             'HTTP_ACCEPT'          => '',
@@ -306,6 +308,7 @@ class Http extends WorkerHttp
         // 第一行为比较重要的一行
         $firstLine = array_shift($headerData);
         list($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI'], $_SERVER['SERVER_PROTOCOL']) = explode(' ', $firstLine);
+        $_SERVER['SCRIPT_NAME'] = $_SERVER['DOCUMENT_URI'] = $_SERVER['REQUEST_URI'];
         Base::getLog()->debug(__METHOD__ . ' receive http request', [
             'method'   => $_SERVER['REQUEST_METHOD'],
             'uri'      => $_SERVER['REQUEST_URI'],
