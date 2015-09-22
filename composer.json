@@ -22,7 +22,8 @@
       "tourze\\Server\\": "src/"
     },
     "files": [
-      "bootstrap.php"
+      "bootstrap.php",
+      "functions.php"
     ]
   },
   "autoload-dev": {
@@ -30,7 +31,8 @@
       "tourze\\Server\\": "tests/"
     },
     "files": [
-      "bootstrap-dev.php"
+      "bootstrap-dev.php",
+      "functions.php"
     ]
   }
 }
