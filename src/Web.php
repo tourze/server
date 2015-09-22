@@ -191,6 +191,7 @@ class Web extends Worker
                 ? $rootDir . '/' . $this->rewrite
                 : $rootDir . '/' . $this->indexFile;
             $extension = 'php';
+            $_SERVER['PATH_INFO'] = $_SERVER['REQUEST_URI'];
         }
 
         // 请求的文件存在
