@@ -2,12 +2,31 @@
 
 namespace tourze\Server\Patch {
 
-    /**
-     * 自定义register_shutdown_function
-     */
-    function register_shutdown_function()
+    use tourze\Base\Base;
+
+    if ( ! function_exists('tourze\Server\Patch\header'))
     {
-        call_user_func_array('\tourze\Server\Patch::registerShutdownFunction', func_get_args());
+        /**
+         * header函数的补丁
+         *
+         * @param string    $string
+         * @param bool|true $replace
+         * @param null      $httpResponseCode
+         */
+        function header($string, $replace = true, $httpResponseCode = null)
+        {
+            Base::getHttp()->header($string, $replace, $httpResponseCode);
+        }
     }
 
+    if ( ! function_exists('tourze\Server\Patch\register_shutdown_function'))
+    {
+        /**
+         * 自定义register_shutdown_function
+         */
+        function register_shutdown_function()
+        {
+            call_user_func_array('\tourze\Server\Patch::registerShutdownFunction', func_get_args());
+        }
+    }
 }

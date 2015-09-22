@@ -261,6 +261,9 @@ class Web extends Worker
                         echo $e;
                     }
                 }
+
+                Patch::applyShutdownFunction();
+
                 $content = ob_get_clean();
                 ini_set('display_errors', 'on');
                 $result = $connection->close($content);

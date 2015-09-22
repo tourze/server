@@ -2,6 +2,7 @@
 
 namespace tourze\Server;
 
+use tourze\Base\Base;
 use tourze\Base\Helper\Arr;
 
 /**
@@ -24,6 +25,8 @@ class Patch
      */
     public static function registerShutdownFunction()
     {
+        Base::getLog()->debug(__METHOD__ . ' register shutdown function');
+
         $args = func_get_args();
         $callback = array_shift($args);
         if ( ! is_callable($callback))
@@ -43,6 +46,7 @@ class Patch
      */
     public static function applyShutdownFunction()
     {
+        Base::getLog()->debug(__METHOD__ . ' apply shutdown functions');
         foreach (self::$shutdownFunctions as $pair)
         {
             call_user_func_array(Arr::get($pair, 'callback'), Arr::get($pair, 'params'));
