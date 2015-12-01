@@ -35,9 +35,14 @@ class Web extends Worker
     protected static $mimeTypeMap = [];
 
     /**
+     * @var callback 当worker进程启动时，如果设置了$onWorkerStart回调函数，则运行. 此钩子函数一般用于进程启动后初始化工作
+     */
+    protected $onWorkerStart = false;
+
+    /**
      * @var callback 用来保存用户设置的onWorkerStart回调
      */
-    protected $_onWorkerStart = null;
+    protected $_onWorkerStart = false;
 
     /**
      * @var array 服务器名到文件路径的转换 ['workerman.net'=>'/home', 'www.workerman.net'=>'home/www']
