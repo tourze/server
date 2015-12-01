@@ -94,6 +94,9 @@ class Worker extends BaseWorker
         // 尝试设置进程名称（需要php>=5.5或者安装了proctitle扩展）
         self::setProcessTitle('WorkerMan: master process  start_file=' . self::$_startFile);
 
+        // 初始化ID
+        self::initId();
+
         // 初始化定时器
         Timer::init();
     }

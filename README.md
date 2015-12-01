@@ -58,3 +58,8 @@
 ```
 
 以保证输出的header正确。
+
+## 使用
+
+复制`start.php`和`config/main.php`到你的项目目, 并按照说明配置好`config/main.php`中的server节.
+

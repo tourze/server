@@ -1,1 +1,3 @@
-Hello, tourze-web.
+<?php
+
+echo 'Hello, tourze-web.';
